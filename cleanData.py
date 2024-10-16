@@ -7,6 +7,14 @@ import re
 
 from enumIincidencias import IncidenciaUsuario
 
+#TODO Variables para las clases de cada base
+
+CLASES_AREA = ["ID", "LATITUD", "LONGITUD", "BARRIO", "DISTRITO", "ESTADO", "FECHA_INSTALACION", "TOTAL_ELEM"]
+CLASE_SATISFACCION = ["ID", "FECHA","PUNTUACION_ACCESIBILIDAD", "PUNTUACION_CALIDAD", "COMENTARIOS"]
+CLASE_USUARIO = ["NIF", "NOMBRE", "EMAIL", "TELEFONO"]
+CLASE_INDICENDIA_USUARIO = ["ID", "TIPO_INCIDENCIA", "FECHA_REPORTE", "ESTADO"] #TODO FALTA TIEMPO RESOLUCION
+
+
 
 class CSVProcessor:
     def __init__(self, directorio):
