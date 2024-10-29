@@ -19,13 +19,13 @@ import re
 ##CLASE_REGISTRO_CLIMA = [""] TODO -- No sabemos que poner aqui
 
 
-lista_autovia = ['AUTOVIA', 'AUTOV ']
-lista_calle = ['CALLE ', 'C/ ', 'C. ', 'CL. ', 'C ']
-lista_avenida = ['AVENIDA', 'AVDA ', 'AV ']
-lista_carretera = ['CARRETERA ', 'CTRA ']
-lista_parque = ['PARQUE', 'PQ ']
-lista_paseo = ['PASEO', 'PO ']
-lista_plaza = ['PLAZA', 'PZA ']
+lista_autovia = ['AUTOVIA', 'AUTOV']
+lista_calle = ['CALLE', 'C/', 'C.', 'CL.', 'C']
+lista_avenida = ['AVENIDA', 'AVDA', 'AV']
+lista_carretera = ['CARRETERA', 'CTRA']
+lista_parque = ['PARQUE', 'PQ']
+lista_paseo = ['PASEO', 'PO']
+lista_plaza = ['PLAZA', 'PZA']
 tipos_via = [lista_autovia, lista_avenida, lista_calle, lista_carretera, lista_parque, lista_paseo, lista_plaza]
 
 
@@ -128,12 +128,10 @@ class CSVProcessor:
         #TODO -- Antes de este bucle, se debe asignar las direcciones en juegos y areas (tipo_via, direccion_aux, etc).
         # Comprobar que son los archivos Juegos y Areas
         if 'JuegosSucio' in self.ruta_archivo or 'AreasSucio' in self.ruta_archivo:
-            comparador = []
-            rellenar = False
             #Buscar considerando un diccionario los datos
             for registro in df.to_dict(orient = 'records'):
-                #if registro['ID'] == 4795141:
-                    #print(registro)
+                comparador = []
+                rellenar = False
                 if pd.isna(registro['TIPO_VIA']):
                     comparador.append('TIPO_VIA')
                     rellenar = True
@@ -151,9 +149,9 @@ class CSVProcessor:
                         df = self.direccion_auxiliar(registro, comparador, df)
                     # Rellena con el juego / area correspondiente
                     if "AreasSucio" in self.ruta_archivo:
-                        df_aux = self.encontrar_registro(registro, "/JuegosSucio.csv", comparador, df)
+                        df = self.encontrar_registro(registro, "/JuegosSucio.csv", comparador, df)
                     else:
-                        df_aux = self.encontrar_registro(registro, "/AreasSucio.csv", comparador, df)
+                        df = self.encontrar_registro(registro, "/AreasSucio.csv", comparador, df)
 
         for columna in df.columns:
 
@@ -282,10 +280,11 @@ class CSVProcessor:
 
     def tipo_via(self, registro:dict):
         """Función que rellena el campo TIPO_VIA del registro a partir de la dirección auxiliar"""
-        dir_aux = registro.get('DIRECCION_AUX')
+        dir_aux = registro['DIRECCION_AUX']
+        palabras = dir_aux.split()
 
         for lista in tipos_via:
-            if dir_aux in lista:
+            if palabras[0] in lista:
                 
                 return lista[0]
             
@@ -294,7 +293,7 @@ class CSVProcessor:
 
     def num_via(self, registro):
         """Función que rellena el campo NUM_VIA del registro a partir de la dirección auxiliar"""
-        dir_aux = registro.get('DIRECCION_AUX')
+        dir_aux = registro['DIRECCION_AUX']
     
         # Separar por palabras
         palabras = dir_aux.split()
@@ -310,16 +309,19 @@ class CSVProcessor:
 
         #Si había coma
         if coma_encontrada:
-            entero_aux = int(lista_aux[0])
-            lista_aux[0] = str(entero_aux)
-            return ' '.join(lista_aux)
+            try:
+                entero_aux = int(lista_aux[0])
+                lista_aux[0] = str(entero_aux)
+                return ' '.join(lista_aux)
+            except:
+                pass
         
         return None
 
 
     def nom_via(self, registro):
         """Función que rellena el campo NOM_VIA del registro a partir de la dirección auxiliar"""
-        dir_aux = registro.get('DIRECCION_AUX')
+        dir_aux = registro['DIRECCION_AUX']
 
         # Separar por palabras
         palabras = dir_aux.split()
@@ -342,22 +344,22 @@ class CSVProcessor:
                 break
             lista_aux.append(palabra)
 
-        return ' '.join(lista_aux[1:])
+        return ' '.join(lista_aux)
 
 
     def encontrar_registro(self, registro: dict, archivo_destino: str, comparador: list, df):
         """Función que busca el registro coincidente en el archivo de destino"""
         df = pd.read_csv(directorio + archivo_destino)
-        ndp_origen = registro.get('NDP')
+        ndp_origen = registro['NDP']
 
         for fila in df.to_dict(orient='records'):
-            ndp_destino = fila.get('NDP')
+            ndp_destino = fila['NDP']
 
             # Encuentra el registro correspondiente
             if ndp_origen == ndp_destino:
 
                 for elemento in comparador:
-                    aux = fila.get(elemento)
+                    aux = fila[elemento]
                     #Guarda el registro si no es nulo
                     if aux:
                         df.loc[df['ID'] == registro['ID'], [elemento]] = aux
@@ -365,7 +367,7 @@ class CSVProcessor:
 
                 return df
             
-        return None
+        return df
 
 
 
