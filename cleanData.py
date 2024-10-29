@@ -18,9 +18,20 @@ import re
 #CLASE_MANTENIMIENTO = ["ID", "FECHA_INTERVENCION", "TIPO_INTERVENCION", "ESTADO_PREVIO", "ESTADO_POSTERIOR"]
 ##CLASE_REGISTRO_CLIMA = [""] TODO -- No sabemos que poner aqui
 
+
+lista_autovia = ['AUTOVIA', 'AUTOV ']
+lista_calle = ['CALLE ', 'C/ ', 'C. ', 'CL. ', 'C ']
+lista_avenida = ['AVENIDA', 'AVDA ', 'AV ']
+lista_carretera = ['CARRETERA ', 'CTRA ']
+lista_parque = ['PARQUE', 'PQ ']
+lista_paseo = ['PASEO', 'PO ']
+lista_plaza = ['PLAZA', 'PZA ']
+tipos_via = [lista_autovia, lista_avenida, lista_calle, lista_carretera, lista_parque, lista_paseo, lista_plaza]
+
+
 NOMBRES_ARCHIVOS = {"AreasSucio.csv":
                         ["ID","DESC_CLASIFICACION","COD_BARRIO","BARRIO","COD_DISTRITO","DISTRITO","ESTADO","COORD_GIS_X","COORD_GIS_Y","SISTEMA_COORD",
-                        "COORDENADAS","TIPO_VIA","NOM_VIA","NUM_VIA","COD_POSTAL","DIRECCION_AUX","NDP","FECHA_INSTALACION","CODIGO_INTERNO","CONTRATO_COD",
+                        "LATITUD", "LONGITUD", "TIPO_VIA","NOM_VIA","NUM_VIA","COD_POSTAL","DIRECCION_AUX","NDP","FECHA_INSTALACION","CODIGO_INTERNO","CONTRATO_COD",
                         "TOTAL_ELEM","TIPO"], # tipo
 
                     "EncuestasSatisfaccionSucio.csv":
@@ -34,7 +45,7 @@ NOMBRES_ARCHIVOS = {"AreasSucio.csv":
 
                     "JuegosSucio.csv": 
                         ["ID","DESC_CLASIFICACION","COD_BARRIO","BARRIO","COD_DISTRITO","DISTRITO","ESTADO","COORD_GIS_X","COORD_GIS_Y","SISTEMA_COORD",
-                         "COORDENADAS","TIPO_VIA","NOM_VIA","NUM_VIA","COD_POSTAL","DIRECCION_AUX","NDP","FECHA_INSTALACION","CODIGO_INTERNO",
+                         "LATITUD", "LONGITUD", "TIPO_VIA","NOM_VIA","NUM_VIA","COD_POSTAL","DIRECCION_AUX","NDP","FECHA_INSTALACION","CODIGO_INTERNO",
                          "CONTRATO_COD","MODELO","TIPO_JUEGO","ACCESIBLE", "INDICADOR_EXPOSICION"], # tipo_juego, INDICADOR_EXPOSICION TODO agregar "FECHA_INTERVENCION"
 
                     "MantenimientoSucio.csv": 
@@ -87,14 +98,6 @@ class CSVProcessor:
                     df = self.cambio_nombre('Tipo', 'TIPO', df)
                     df = self.cambio_nombre('JuegoID', 'JUEGO_ID', df)
                     df = self.cambio_nombre('Comentarios', 'COMENTARIOS', df)
-
-                if nombre == "AreasSucio.csv" or nombre == "JuegosSucio.csv":
-                    if 'LATITUD' in df.columns and 'LONGITUD' in df.columns:
-                        try:
-                            df.loc[:, 'COORDENADAS'] = df['LATITUD'].astype(str) + ', ' + df['LONGITUD'].astype(str)
-                            df = df.drop(['LATITUD', 'LONGITUD'], axis=1)
-                        except Exception:
-                            pass
                 
                 df = df[NOMBRES_ARCHIVOS[nombre]]
 
@@ -123,20 +126,49 @@ class CSVProcessor:
         df = self.modify_columns(df)
 
         #TODO -- Antes de este bucle, se debe asignar las direcciones en juegos y areas (tipo_via, direccion_aux, etc).
+        # Comprobar que son los archivos Juegos y Areas
+        if 'JuegosSucio' in self.ruta_archivo or 'AreasSucio' in self.ruta_archivo:
+            comparador = []
+            rellenar = False
+            #Buscar considerando un diccionario los datos
+            for registro in df.to_dict(orient = 'records'):
+                #if registro['ID'] == 4795141:
+                    #print(registro)
+                if pd.isna(registro['TIPO_VIA']):
+                    comparador.append('TIPO_VIA')
+                    rellenar = True
+                if pd.isna(registro['NOM_VIA']):
+                    comparador.append('NOM_VIA')
+                    rellenar = True
+                if pd.isna(registro['NUM_VIA']):
+                    comparador.append('NUM_VIA')
+                    rellenar = True
+                
+                # Rellena los campos correspondientes
+                if rellenar:
+                    # Rellena con la dirección auxiliar si no está vacía
+                    if not pd.isna(registro['DIRECCION_AUX']):
+                        df = self.direccion_auxiliar(registro, comparador, df)
+                    # Rellena con el juego / area correspondiente
+                    if "AreasSucio" in self.ruta_archivo:
+                        df_aux = self.encontrar_registro(registro, "/JuegosSucio.csv", comparador, df)
+                    else:
+                        df_aux = self.encontrar_registro(registro, "/AreasSucio.csv", comparador, df)
 
         for columna in df.columns:
-            """ TODO -- Corregir
+
             if "UsuariosSucio.csv" not in self.ruta_archivo and "meteo24.csv" not in self.ruta_archivo:
-            # Si no es "UsuariosSucio.csv" ni "meteo24.csv", usar la columna 'ID'
-                df[columna] = df[columna].map(
-                    lambda x: f"{df['ID']}-{columna}-ausente" if pd.isna(x) or str(x).strip() == '' else self.corregir_tipografia(x)
+                # Si no es "UsuariosSucio.csv" ni "meteo24.csv", usar el valor en la columna 'ID'
+                df[columna] = df.apply(
+                    lambda row: f"{row['ID']}-{columna}-ausente" if pd.isna(row[columna]) or str(row[columna]).strip() == '' else self.corregir_tipografia(row[columna]),
+                    axis=1
                 )
             elif "UsuariosSucio.csv" in self.ruta_archivo:
-                # Si es "UsuariosSucio.csv", usar la columna 'NIF'
-                df[columna] = df[columna].map(
-                    lambda x: f"{df['NIF']}-{columna}-ausente" if pd.isna(x) or str(x).strip() == '' else self.corregir_tipografia(x)
+                # Si es "UsuariosSucio.csv", usar el valor en la columna 'NIF'
+                df[columna] = df.apply(
+                    lambda row: f"{row['NIF']}-{columna}-ausente" if pd.isna(row[columna]) or str(row[columna]).strip() == '' else self.corregir_tipografia(row[columna]),
+                    axis=1
                 )
-            """
 
 
             if 'fecha' in columna.lower():
@@ -182,6 +214,7 @@ class CSVProcessor:
 
         return df["ID"]+ "-" + columna.upper() + "-ausente" 
 
+
     def formatear_telefono(self, numero):
         # Eliminar cualquier carácter no numérico
         numero = re.sub(r'\D', '', str(numero))
@@ -193,7 +226,8 @@ class CSVProcessor:
             # Si el número no tiene el formato adecuado, retornarlo tal cual
             return numero
 
-    def sustituir_puntos_y_comas(ruta_archivo):
+
+    def sustituir_puntos_y_comas(self, ruta_archivo):
         # Leer el archivo CSV usando ';' como separador
         df = pd.read_csv(ruta_archivo, sep=';')
         
@@ -201,6 +235,7 @@ class CSVProcessor:
         df.to_csv(ruta_archivo, sep=',', index=False)
         print(f"Archivo '{ruta_archivo}' modificado con éxito.")
     
+
     def corregir_tipografia(self, texto):
 
         #TODO ejeplo para un tipo de archivo
@@ -214,6 +249,7 @@ class CSVProcessor:
             return texto
         return texto
 
+
     def procesar_archivos_csv(self):
         for archivo in os.listdir(self.directorio):
             if archivo.endswith('.csv'):
@@ -221,11 +257,116 @@ class CSVProcessor:
                 
 
                 #TODO --- Corregir
-                """
-                if "meteo24" in archivo:
+                
+                if "meteo24" in ruta_archivo:
                     self.sustituir_puntos_y_comas(ruta_archivo) # Sustituir los ; por ,
-                """
+                
                 self.cargar_y_reemplazar_csv(ruta_archivo)
+
+
+    def direccion_auxiliar(self, registro: dict, comparador: list, df):
+        #Registro ausente: 4795141
+        
+        if 'TIPO_VIA' in comparador:
+            result = self.tipo_via(registro)
+            df.loc[df['ID'] == registro['ID'], ['TIPO_VIA']] = result
+        if 'NOM_VIA' in comparador:
+            result = self.nom_via(registro)
+            df.loc[df['ID'] == registro['ID'], ['NOM_VIA']] = result
+        if 'NUM_VIA' in comparador:
+            result = self.num_via(registro)
+            df.loc[df['ID'] == registro['ID'], ['NUM_VIA']] = result
+
+        return df
+
+
+    def tipo_via(self, registro:dict):
+        """Función que rellena el campo TIPO_VIA del registro a partir de la dirección auxiliar"""
+        dir_aux = registro.get('DIRECCION_AUX')
+
+        for lista in tipos_via:
+            if dir_aux in lista:
+                
+                return lista[0]
+            
+        return None
+
+
+    def num_via(self, registro):
+        """Función que rellena el campo NUM_VIA del registro a partir de la dirección auxiliar"""
+        dir_aux = registro.get('DIRECCION_AUX')
+    
+        # Separar por palabras
+        palabras = dir_aux.split()
+        
+        lista_aux = []
+        coma_encontrada = False
+
+        for palabra in palabras:
+            if coma_encontrada:
+                lista_aux.append(palabra)
+            if ',' in palabra:
+                coma_encontrada = True
+
+        #Si había coma
+        if coma_encontrada:
+            entero_aux = int(lista_aux[0])
+            lista_aux[0] = str(entero_aux)
+            return ' '.join(lista_aux)
+        
+        return None
+
+
+    def nom_via(self, registro):
+        """Función que rellena el campo NOM_VIA del registro a partir de la dirección auxiliar"""
+        dir_aux = registro.get('DIRECCION_AUX')
+
+        # Separar por palabras
+        palabras = dir_aux.split()
+        primera_palabra = palabras[0]
+
+        #Comprobar si la primera palabra pertenece a una lista de palabras
+
+        for lista in tipos_via:
+            if primera_palabra in lista:
+                palabras = palabras[1:]
+        
+        lista_aux = []
+
+        for palabra in palabras:
+            if ',' in palabra:
+                palabra = palabra[:-1]
+                lista_aux.append(palabra)
+                break
+            elif palabra == 'CON':
+                break
+            lista_aux.append(palabra)
+
+        return ' '.join(lista_aux[1:])
+
+
+    def encontrar_registro(self, registro: dict, archivo_destino: str, comparador: list, df):
+        """Función que busca el registro coincidente en el archivo de destino"""
+        df = pd.read_csv(directorio + archivo_destino)
+        ndp_origen = registro.get('NDP')
+
+        for fila in df.to_dict(orient='records'):
+            ndp_destino = fila.get('NDP')
+
+            # Encuentra el registro correspondiente
+            if ndp_origen == ndp_destino:
+
+                for elemento in comparador:
+                    aux = fila.get(elemento)
+                    #Guarda el registro si no es nulo
+                    if aux:
+                        df.loc[df['ID'] == registro['ID'], [elemento]] = aux
+                        #registro[elemento] = aux
+
+                return df
+            
+        return None
+
 
 
 # Directorio donde están los archivos .csv
