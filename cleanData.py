@@ -51,10 +51,10 @@ NOMBRES_ARCHIVOS = {"AreasSucio.csv":
                     "MantenimientoSucio.csv": 
                         ["ID","FECHA_INTERVENCION","TIPO_INTERVENCION","ESTADO_PREVIO","ESTADO_POSTERIOR","JUEGO_ID","TIPO","COMENTARIOS"], #JuegoID, Tipo, Comentarios
                     
-                    "meteo24.csv": 
-                        ["PROVINCIA", "MUNICIPIO", "ESTACION", "MAGNITUD", "PUNTO_MUESTREO", "ANO" ,"MES", "V01", "V02", "V03", "V04", "V05","V06", "V07", "V08", 
-                            "V09", "V10", "V11", "V12", "V13", "V14", "V15",  "V16", "V17",  "V18", "V19", "V20", "V21", "V22", "V23", "V24", "V25", 
-                            "V26", "V27", "V28", "V29", "V30", "V31"],
+                    #"meteo24.csv": 
+                    #    ["PROVINCIA", "MUNICIPIO", "ESTACION", "MAGNITUD", "PUNTO_MUESTREO", "ANO" ,"MES", "V01", "V02", "V03", "V04", "V05","V06", "V07", "V08", 
+                    #        "V09", "V10", "V11", "V12", "V13", "V14", "V15",  "V16", "V17",  "V18", "V19", "V20", "V21", "V22", "V23", "V24", "V25", 
+                    #        "V26", "V27", "V28", "V29", "V30", "V31"],
                     
                     "UsuariosSucio.csv": ["NIF", "NOMBRE", "EMAIL", "TELEFONO"] # descartamos email falso
                     }
@@ -117,10 +117,9 @@ class CSVProcessor:
         return df
     
 
-    def cargar_y_reemplazar_csv(self, ruta_archivo):
+    def cargar_y_reemplazar_csv(self):
         """Metodo que carga y remplaza cada uno de los archivos.csv"""
-        self.ruta_archivo = ruta_archivo        # Actualizarlo segun el archivo
-        df = pd.read_csv(ruta_archivo)
+        df = pd.read_csv(self.ruta_archivo)
 
         # Borrar informacion innecesaria
         df = self.modify_columns(df)
@@ -146,12 +145,16 @@ class CSVProcessor:
                 if rellenar:
                     # Rellena con la dirección auxiliar si no está vacía
                     if not pd.isna(registro['DIRECCION_AUX']):
-                        df = self.direccion_auxiliar(registro, comparador, df)
+                        registro = self.direccion_auxiliar(registro, comparador)
                     # Rellena con el juego / area correspondiente
-                    if "AreasSucio" in self.ruta_archivo:
-                        df = self.encontrar_registro(registro, "/JuegosSucio.csv", comparador, df)
+                    elif "AreasSucio" in self.ruta_archivo:
+                        registro = self.cambiar_registro(registro, "/JuegosSucio.csv", comparador)
                     else:
-                        df = self.encontrar_registro(registro, "/AreasSucio.csv", comparador, df)
+                        registro = self.cambiar_registro(registro, "/AreasSucio.csv", comparador)
+
+                    df.loc[df['ID'] == registro['ID'], ['TIPO_VIA']] = registro['TIPO_VIA']
+                    df.loc[df['ID'] == registro['ID'], ['NOM_VIA']] = registro['NOM_VIA']
+                    df.loc[df['ID'] == registro['ID'], ['NUM_VIA']] = registro['NUM_VIA']
 
         for columna in df.columns:
 
@@ -190,9 +193,14 @@ class CSVProcessor:
             df = df.drop_duplicates(subset='ID', keep='first')
             print("Duplicados en la columna 'ID' eliminados.")
 
-        df.to_csv(ruta_archivo, index=False)
+        if 'meteo24'not in self.ruta_archivo:
+            df.to_csv(self.ruta_archivo, index=False)
+        elif 'meteo24' in self.ruta_archivo:
+            self.modificar_meteo(df)
+            #df.to_csv(directorio +'/meteoModified.csv', index = False)
+        
         print(
-            f"Archivo '{ruta_archivo}' procesado y guardado con valores nulos, fechas estandarizadas y errores tipográficos corregidos.")
+            f"Archivo '{self.ruta_archivo}' procesado y guardado con valores nulos, fechas estandarizadas y errores tipográficos corregidos.")
 
 
 
@@ -225,13 +233,13 @@ class CSVProcessor:
             return numero
 
 
-    def sustituir_puntos_y_comas(self, ruta_archivo):
+    def sustituir_puntos_y_comas(self ):
         # Leer el archivo CSV usando ';' como separador
-        df = pd.read_csv(ruta_archivo, sep=';')
+        df = pd.read_csv(self.ruta_archivo, sep=';')
         
         # Guardar el archivo CSV usando ',' como separador, sobrescribiendo el original
-        df.to_csv(ruta_archivo, sep=',', index=False)
-        print(f"Archivo '{ruta_archivo}' modificado con éxito.")
+        df.to_csv(self.ruta_archivo, sep=',', index=False)
+        print(f"Archivo '{self.ruta_archivo}' modificado con éxito.")
     
 
     def corregir_tipografia(self, texto):
@@ -251,31 +259,31 @@ class CSVProcessor:
     def procesar_archivos_csv(self):
         for archivo in os.listdir(self.directorio):
             if archivo.endswith('.csv'):
-                ruta_archivo = os.path.join(self.directorio, archivo)
+                self.ruta_archivo = os.path.join(self.directorio, archivo)
                 
 
                 #TODO --- Corregir
                 
-                if "meteo24" in ruta_archivo:
-                    self.sustituir_puntos_y_comas(ruta_archivo) # Sustituir los ; por ,
+                if "meteo24" in self.ruta_archivo or 'estaciones' in self.ruta_archivo:
+                    self.sustituir_puntos_y_comas() # Sustituir los ; por ,
                 
-                self.cargar_y_reemplazar_csv(ruta_archivo)
+                self.cargar_y_reemplazar_csv()
 
 
-    def direccion_auxiliar(self, registro: dict, comparador: list, df):
+    def direccion_auxiliar(self, registro: dict, comparador: list):
         #Registro ausente: 4795141
         
         if 'TIPO_VIA' in comparador:
-            result = self.tipo_via(registro)
-            df.loc[df['ID'] == registro['ID'], ['TIPO_VIA']] = result
+            registro['TIPO_VIA'] = self.tipo_via(registro)
+            #df.loc[df['ID'] == registro['ID'], ['TIPO_VIA']] = result
         if 'NOM_VIA' in comparador:
-            result = self.nom_via(registro)
-            df.loc[df['ID'] == registro['ID'], ['NOM_VIA']] = result
+            registro['NOM_VIA'] = self.nom_via(registro)
+            #df.loc[df['ID'] == registro['ID'], ['NOM_VIA']] = result
         if 'NUM_VIA' in comparador:
-            result = self.num_via(registro)
-            df.loc[df['ID'] == registro['ID'], ['NUM_VIA']] = result
+            registro['NUM_VIA'] = self.num_via(registro)
+            #df.loc[df['ID'] == registro['ID'], ['NUM_VIA']] = result
 
-        return df
+        return registro
 
 
     def tipo_via(self, registro:dict):
@@ -347,29 +355,112 @@ class CSVProcessor:
         return ' '.join(lista_aux)
 
 
-    def encontrar_registro(self, registro: dict, archivo_destino: str, comparador: list, df):
+    def cambiar_registro(self, registro: dict, archivo_destino: str, comparador: list):
         """Función que busca el registro coincidente en el archivo de destino"""
-        df = pd.read_csv(directorio + archivo_destino)
-        ndp_origen = registro['NDP']
 
-        for fila in df.to_dict(orient='records'):
-            ndp_destino = fila['NDP']
+        registro_aux = self.encontrar_registro(registro['LATITUD'], registro['LONGITUD'], archivo_destino, comparador)
 
-            # Encuentra el registro correspondiente
-            if ndp_origen == ndp_destino:
+        if registro_aux:
+            for elemento in comparador:
+                aux = registro_aux[elemento]
+                #Guarda el registro si no es nulo
+                if aux:
+                    registro[elemento] = aux
 
+        return registro
+
+    def encontrar_registro(self, latitud, longitud, archivo_destino, comparador):
+        """Función que encuentra las coordenadas"""
+        df_destino = pd.read_csv(directorio + archivo_destino)
+
+        # Redondea a 3 decimales para que pueda coincidir con algún valor
+        latitud = "{:.3f}".format(latitud)
+        longitud = "{:.3f}".format(longitud)
+
+        for registro in df_destino.to_dict(orient='records'):
+            latitud_aux = "{:.3f}".format(registro['LATITUD'])
+            longitud_aux = "{:.3f}".format(registro['LONGITUD'])
+
+            # Encuentra un registro con las mismas coordenadas
+            if latitud_aux == latitud and longitud_aux == longitud:
+                vacio = False
                 for elemento in comparador:
-                    aux = fila[elemento]
-                    #Guarda el registro si no es nulo
-                    if aux:
-                        df.loc[df['ID'] == registro['ID'], [elemento]] = aux
-                        #registro[elemento] = aux
+                    # Si contiene un elemento vacio, sale de la función
+                    if pd.isna(registro[elemento]):
+                        vacio = True
+                        break
 
-                return df
+                if not vacio:
+                    return registro
+        
+        return None
+    
+    def modificar_meteo(self, df):
+        """Esta funcion crea un nuevo csv con los datos necesarios en el archivo meteo24.csv"""
+        
+        df_estaciones = pd.read_csv(self.directorio+'estaciones_meteo_CodigoPostal.csv')
+        
+        df_estaciones_dict = df_estaciones.to_dict(orient='records')
+        
+        lista_aux = []
+        # Recorrer todas las filas
+        for estacion in df_estaciones_dict:
+            lista_fechas = []
             
-        return df
+            for registro in df.to_dict(orient = 'records'):
+                codigo_registro = registro['PUNTO_MUESTREO'].split("_")[0]
+                actualizado = False # Para comprobar que es el mismo registro    
+                if estacion['CODIGO'] == codigo_registro and registro['MAGNITUD'] in ['81', '83', '89']:
+                    month = registro['MES']
+                    year = registro['ANO']
+                    fecha = month + '-' + year
+                    
+                    if fecha not in lista_fechas:
+                        lista_fechas.append(fecha)
+                        # Crear nuevo registro
 
+                        registro_nuevo = {
+                            'FECHA': month + '-' + year,
+                            'AREA_ID': estacion['CODIGO_POSTAL'],   # TODO ---CORREGIR
+                        }
 
+                    if registro['MAGNITUD'] == '81':      # VELOCIDAD_VIENTO
+                        registro_aux = self.info_dias(registro, 'VV')
+                        registro_nuevo.update(registro_aux)
+                    
+                    elif registro['MAGNITUD'] == '83':    # TEMPERATURA
+                        registro_aux = self.info_dias(registro, 'T')
+                        registro_nuevo.update(registro_aux)
+                    
+                    else:                                 # PRECIPITACION
+                        registro_aux = self.info_dias(registro, 'P')
+                        registro_nuevo.update(registro_aux)
+
+                    actualizado = True # Se ha modificado un registro 
+                  
+                if actualizado:
+                    lista_aux.pop()
+                
+                # Guardar el registro en la lista
+                lista_aux.append(registro_nuevo)
+
+        # Convertir a datagrama
+        df_estacion = pd.DataFrame(lista_aux)
+
+        # Guardar la informacion en un archivo.csv
+        df_estacion.to_csv(directorio +'/MeteoModified.csv', index=False)
+
+                
+
+    def info_dias(self, registro, tipo):
+        """Funcion que devuelve en forma de lista toda la informacion sobre un registro de cada dia"""
+        registro_aux = {}
+        # Tomamos los encabezados de los dias
+        for elem in registro.keys()[7:]:
+            if 'D' in elem:
+                registro_aux[tipo + elem[1:]] = registro[elem]
+        return registro_aux
+        
 
 # Directorio donde están los archivos .csv
 directorio = 'Datasets_Practica_1_2'
