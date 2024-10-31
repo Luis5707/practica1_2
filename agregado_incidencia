@@ -1,0 +1,51 @@
+db.incidencia.aggregate([
+    {
+        $lookup: {
+            from: "usuario",
+            localField: "USUARIO_ID",
+            foreignField: "NIF",
+            as: "mantenimiento_juego"
+        }
+    },
+    {
+        $addFields: {
+            nivelEscalamiento: {
+                $cond: [
+                    { $eq: ["$TIPO_INCIDENCIA", "MAL FUNCIONAMIENTO"] },
+                    1,
+                    {
+                        $cond: [
+                            { $eq: ["$TIPO_INCIDENCIA", "ROTURA"] },
+                            2,
+                            {
+                                $cond: [
+                                    { $eq: ["$TIPO_INCIDENCIA", "VANDALISMO"] },
+                                    3,
+                                    {
+                                        $cond: [
+                                            { $eq: ["$TIPO_INCIDENCIA", "DESGASTE"] },
+                                            4,
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            nombreUsuario: { $arrayElemAt: ["$mantenimiento_juego.NOMBRE", 0] },
+            emailUsuario: { $arrayElemAt: ["$mantenimiento_juego.EMAIL", 0] },
+            telefonoUsuario: { $arrayElemAt: ["$mantenimiento_juego.TELEFONO", 0] }
+        }
+    },
+    {
+        $project: {
+            _id: 1,
+            nivelEscalamiento: 1,
+            nombreUsuario: 1,
+            emailUsuario: 1,
+            telefonoUsuario: 1
+        }
+    }
+]);
