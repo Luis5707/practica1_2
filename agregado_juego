@@ -1,0 +1,61 @@
+db.juego.aggregate([
+    {
+        $lookup: {
+            from: "mantenimiento",            // Colección de mantenimiento
+            localField: "ID",                 // Campo en juego que relaciona con Mantenimiento
+            foreignField: "JUEGO_ID",         // Campo en Mantenimiento
+            as: "mantenimiento_juego"         // Nuevo campo que contendrá la unión
+        }
+    },
+    {
+        $unwind: {
+            path: "$mantenimiento_juego",     // Desenrollar los mantenimientos para acceso directo
+            preserveNullAndEmptyArrays: true  // Mantener documentos de juego sin mantenimiento
+        }
+    },
+    {
+        $lookup: {
+            from: "incidencias",              // Colección de incidencias
+            localField: "mantenimiento_juego.ID", // Asegúrate de que este campo exista
+            foreignField: "MANTENIMIENTO_ID", // Campo en Incidencias
+            as: "incidencias"                 // Nuevo campo que contendrá la unión
+        }
+    },
+    {
+        $addFields: {
+            ultimaFechaMantenimiento: {
+                $max: "$mantenimiento_juego.FECHA_INTERVENCION"  // Última fecha de mantenimiento
+            },
+            tiempoResolucion: {
+                $avg: {
+                    $map: {
+                        input: "$incidencias",
+                        as: "incidencia",
+                        in: {
+                            $divide: [ // Convertimos el resultado a días
+                                {
+                                    $subtract: [
+                                        "$$incidencia.FECHA_REPORTE", // Fecha de reporte
+                                        "$mantenimiento_juego.FECHA_INTERVENCION" // Fecha de intervención
+                                    ]
+                                },
+                                1000 * 60 * 60 * 24 // Conversión de milisegundos a días
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    {
+        $project: {
+            _id: 1,
+            ID: 1,                       // Suponiendo que hay un campo 'ID' en Juego
+            ultimaFechaMantenimiento: 1,
+            tiempoResolucion: { $ifNull: ["$tiempoResolucion", 0] }, // Maneja null, devuelve 0 si no hay incidencias
+            mantenimiento_juego: 1,      // Incluye el mantenimiento relacionado
+            incidencias: 1               // Incluye las incidencias relacionadas
+        }
+    }
+]);
