@@ -1,55 +1,119 @@
 // Agregado: AreaRecreativa_Clima
-//TODO-- Falta filtrar la salida, solo mostrar TIPO_INCIDENTE, GRAVEDAD, y FECHA_REPORTE de IncidentesSeguridad, 
+//TODO-- Falta filtrar la salida, solo mostrar TIPO_INCIDENTE, GRAVEDAD, y FECHA_REPORTE de IncidentesSeguridad
+
+// ** Crea la colección areaRecreativa_Clima ** 
 db.areaRecreativa.aggregate([
     {
-        $lookup: {
-            from: "juego",
-            localField: "NDP", // Modifica esto si es necesario
+        $lookup: {  // Obtiene los juegos asociados al área según NDP
+            from: "juego", 
+            localField: "NDP", 
             foreignField: "NDP",
             as: "juegos"
         } 
     },
     {
-        $lookup: {
+        $lookup: { // Obtiene los incidentes asociados al área según el ID
             from: "incidenteSeguridad",
-            localField: "ID", // Asegúrate de que este campo sea correcto
+            localField: "ID", 
             foreignField: "AREA_RECREATIVA_ID",
             as: "incidentes"
         }
     },
     {
-        $lookup: {
-            from: "meteo",
-            localField: "COD_BARRIO", // Asegúrate de que este campo sea correcto
+        $lookup: { // Obtiene el clima asociado al área según el ID
+            from: "registroClima",
+            localField: "COD_BARRIO", 
             foreignField: "DISTRITO",
             as: "clima"
         }
     },
     {
-        $addFields: {
-            estadoGlobalArea: {
-                   $add: [
-                    {
-                        $size: {
-                            $filter: {
-                                input: "$juegos",
-                                as: "juego",
-                                cond: { $eq: ["$$juego.ESTADO", false] } // Cambia esto si el campo es diferente
-                            }
+        $lookup: { // Obtiene las encuestas asociadas al área según el ID
+            from: "encuestaSatisfaccion",
+            localField: "ID", 
+            foreignField: "AREA_RECREATIVA_ID",
+            as: "encuestas"
+        }
+    },
+    {
+        $project: {
+            ID: 1,
+            juegos: 1,
+            incidentes: 1,
+            clima: 1,
+            "encuestas.ID": 1,
+            "encuestas.COMENTARIOS": 1,
+        }
+    },
+    {
+        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima" }
+    }
+]);
+
+// ** Añade la columna de la puntuación **
+db.areaRecreativa_Clima.aggregate([
+    {
+        $addFields: { // Calcula la puntuación según el comentario
+            puntuacion: {
+                $map: {
+                    input: "$encuestas.COMENTARIOS",
+                    as: "comentario",
+                    in: {
+                        $switch: {
+                            branches: [
+                                { case: { $eq: ["$$comentario", "EXCELENTE"] }, then: 5 },
+                                { case: { $eq: ["$$comentario", "MUY BUENO"] }, then: 4 },
+                                { case: { $eq: ["$$comentario", "ACEPTABLE"] }, then: 3 },
+                                { case: { $eq: ["$$comentario", "REGULAR"] }, then: 2 },
+                                { case: { $eq: ["$$comentario", "DEFICIENTE"] }, then: 1 }
+                            ],
+                            default: 0
                         }
-                    },
-                    { $size: "$incidentes" }
+                    }
+                }
+            }
+        }
+    },
+    {
+        $addFields: {   
+            puntuacionComentarios: { $sum: "$puntuacion" }, // Suma la puntuación de cada comentario de cada encuesta para un juego
+            juegosEnReparacion: {   // Calcula el número de juegos en reparación
+                $size: {
+                    $filter: {
+                        input: "$juegos",
+                        as: "juego",
+                        cond: { $eq: ["$$juego.ESTADO", "EN REPARACION"] }
+                    }
+                }
+            },
+            totalIncidentesSeguridad: { // Calcula el número de incidentes que hay por área
+                $size: "$incidentes" 
+            }
+        }
+    },
+    {
+        $addFields: {   // Calcula la puntuación total
+            estadoGlobalArea: {
+                $subtract: [
+                    { $subtract: ["$puntuacionComentarios", "$juegosEnReparacion"] },
+                    "$totalIncidentesSeguridad"
                 ]
             }
         }
     },
     {
         $project: {
+            _id: 1,
             ID: 1,
-            estadoGlobalArea: 1,
             juegos: 1,
             incidentes: 1,
-            clima: 1
+            clima: 1,
+            "encuestas.ID": 1,
+            "encuestas.COMENTARIOS": 1,
+            estadoGlobalArea: 1
         }
+    },
+    {
+        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima" }
     }
-])
+]);
