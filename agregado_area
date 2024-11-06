@@ -1,5 +1,33 @@
 // Agregado: AreaRecreativa_Clima
-//TODO-- Falta filtrar la salida, solo mostrar TIPO_INCIDENTE, GRAVEDAD, y FECHA_REPORTE de IncidentesSeguridad
+
+//Formato fecha de CLIMA. Pasa el atributo FECHA de formato string a formato ISODATE
+db.registroClima.aggregate([
+    {
+        $addFields: {
+            FECHA: {
+                $cond: {
+                    if: { $ne: ["$FECHA", null] },
+                    then: {
+                        $dateFromString: {
+                            dateString: "$FECHA"
+                        }
+                    },
+                    else: null
+                }
+            }
+        }
+    },
+        {
+        $project: {
+            FECHA: 1
+        }
+    },
+    /*
+    {
+        $out: "registroClima" // Guarda los documentos modificados en la misma colección
+    }
+    */
+]);
 
 // ** Crea la colección areaRecreativa_Clima ** 
 db.areaRecreativa.aggregate([
@@ -8,7 +36,7 @@ db.areaRecreativa.aggregate([
             from: "juego", 
             localField: "NDP", 
             foreignField: "NDP",
-            as: "juegos"
+            as: "JUEGOS"
         } 
     },
     {
@@ -16,7 +44,7 @@ db.areaRecreativa.aggregate([
             from: "incidenteSeguridad",
             localField: "ID", 
             foreignField: "AREA_RECREATIVA_ID",
-            as: "incidentes"
+            as: "INCIDENTES"
         }
     },
     {
@@ -24,7 +52,7 @@ db.areaRecreativa.aggregate([
             from: "registroClima",
             localField: "COD_BARRIO", 
             foreignField: "DISTRITO",
-            as: "clima"
+            as: "CLIMA"
         }
     },
     {
@@ -32,31 +60,31 @@ db.areaRecreativa.aggregate([
             from: "encuestaSatisfaccion",
             localField: "ID", 
             foreignField: "AREA_RECREATIVA_ID",
-            as: "encuestas"
+            as: "ENCUESTAS"
         }
     },
     {
         $project: {
             ID: 1,
-            juegos: 1,
-            incidentes: 1,
-            clima: 1,
-            "encuestas.ID": 1,
-            "encuestas.COMENTARIOS": 1,
+            JUEGOS: 1,
+            INCIDENTES: 1,
+            CLIMA: 1,
+            "ENCUESTAS.ID": 1,
+            "ENCUESTAS.COMENTARIOS": 1,
         }
     },
     {
-        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima" }
+        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima_AGREGADO" }
     }
 ]);
 
 // ** Añade la columna de la puntuación **
-db.areaRecreativa_Clima.aggregate([
+db.areaRecreativa_Clima_AGREGADO.aggregate([
     {
         $addFields: { // Calcula la puntuación según el comentario
-            puntuacion: {
+            PUNTUACION: {
                 $map: {
-                    input: "$encuestas.COMENTARIOS",
+                    input: "$ENCUESTAS.COMENTARIOS",
                     as: "comentario",
                     in: {
                         $switch: {
@@ -76,27 +104,27 @@ db.areaRecreativa_Clima.aggregate([
     },
     {
         $addFields: {   
-            puntuacionComentarios: { $sum: "$puntuacion" }, // Suma la puntuación de cada comentario de cada encuesta para un juego
-            juegosEnReparacion: {   // Calcula el número de juegos en reparación
+            PUNTUACION_COMENTARIOS: { $sum: "$PUNTUACION" }, // Suma la puntuación de cada comentario de cada encuesta para un juego
+            JUEGOS_EN_REPARACION: {   // Calcula el número de juegos en reparación
                 $size: {
                     $filter: {
-                        input: "$juegos",
+                        input: "$JUEGOS",
                         as: "juego",
                         cond: { $eq: ["$$juego.ESTADO", "EN REPARACION"] }
                     }
                 }
             },
-            totalIncidentesSeguridad: { // Calcula el número de incidentes que hay por área
-                $size: "$incidentes" 
+            TOTAL_INCIDENTES_SEGURIDAD: { // Calcula el número de incidentes que hay por área
+                $size: "$INCIDENTES" 
             }
         }
     },
     {
         $addFields: {   // Calcula la puntuación total
-            estadoGlobalArea: {
+            ESTADO_GLOBAL_AREA: {
                 $subtract: [
-                    { $subtract: ["$puntuacionComentarios", "$juegosEnReparacion"] },
-                    "$totalIncidentesSeguridad"
+                    { $subtract: ["$PUNTUACION_COMENTARIOS", "$JUEGOS_EN_REPARACION"] },
+                    "$TOTAL_INCIDENTES_SEGURIDAD"
                 ]
             }
         }
@@ -105,15 +133,56 @@ db.areaRecreativa_Clima.aggregate([
         $project: {
             _id: 1,
             ID: 1,
-            juegos: 1,
-            incidentes: 1,
-            clima: 1,
-            "encuestas.ID": 1,
-            "encuestas.COMENTARIOS": 1,
-            estadoGlobalArea: 1
+            JUEGOS: 1,
+            INCIDENTES: 1,
+            CLIMA: 1,
+            "ENCUESTAS.ID": 1,
+            "ENCUESTAS.COMENTARIOS": 1,
+            ESTADO_GLOBAL_AREA: 1
         }
     },
     {
-        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima" }
+        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima_AGREGADO" }
+    }
+]);
+
+db.areaRecreativa_Clima_AGREGADO.aggregate([
+    {
+        $set: {
+        CANTIDAD_JUEGOS_POR_TIPO: {
+            $arrayToObject: {
+            $map: {
+                input: { $setUnion: "$JUEGOS.TIPO_JUEGO" },
+                as: "tipo",
+                in: {
+                k: "$$tipo",
+                v: {
+                    $size: {
+                    $filter: {
+                        input: "$JUEGOS",
+                        cond: { $eq: ["$$this.TIPO_JUEGO", "$$tipo"] }
+                    }
+                    }
+                }
+                }
+            }
+            }
+        }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            ID: 1,
+            "JUEGOS.ID": 1,
+            "INCIDENTES.ID": 1,
+            "INCIDENTES.FECHA_REPORTE": 1,
+            "INCIDENTES.TIPO_INCIDENTE": 1,
+            "INCIDENTES.GRAVEDAD": 1,
+            CLIMA: 1,
+            "ENCUESTAS.ID": 1,
+            ESTADO_GLOBAL_AREA: 1,
+            CANTIDAD_JUEGOS_POR_TIPO: 1
+        }
     }
 ]);
