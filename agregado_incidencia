@@ -2,50 +2,57 @@ db.incidencia.aggregate([
     {
         $lookup: {
             from: "usuario",
-            localField: "USUARIO_ID",
-            foreignField: "NIF",
-            as: "mantenimiento_juego"
+            let: { usuarioIDs: "$USUARIO_ID" },
+            pipeline: [
+                {
+                    $match: {
+                        $expr: {
+                            $in: ["$NIF", "$$usuarioIDs"] // Verifica si el NIF está en la lista de usuarioIDs
+                        }
+                    }
+                }
+            ],
+            as: "USUARIOS"
         }
     },
+
     {
         $addFields: {
-            nivelEscalamiento: {
-                $cond: [
-                    { $eq: ["$TIPO_INCIDENCIA", "MAL FUNCIONAMIENTO"] },
-                    1,
-                    {
-                        $cond: [
-                            { $eq: ["$TIPO_INCIDENCIA", "ROTURA"] },
-                            2,
-                            {
-                                $cond: [
-                                    { $eq: ["$TIPO_INCIDENCIA", "VANDALISMO"] },
-                                    3,
-                                    {
-                                        $cond: [
-                                            { $eq: ["$TIPO_INCIDENCIA", "DESGASTE"] },
-                                            4,
-                                            null
-                                        ]
-                                    }
-                                ]
-                            }
-                        ]
+            NIVEL_ESCALAMIENTO: {
+                        $switch: {
+                            branches: [
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "EXCELENTE"] }, then: 5 },
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "DESGASTE"] }, then: 4 },
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "VANDALISMO"] }, then: 3 },
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "ROTURA"] }, then: 2 },
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "MAL FUNCIONAMIENTO"] }, then: 1 }
+                            ],
+                            default: 0
+                        }
                     }
-                ]
-            },
-            nombreUsuario: { $arrayElemAt: ["$mantenimiento_juego.NOMBRE", 0] },
-            emailUsuario: { $arrayElemAt: ["$mantenimiento_juego.EMAIL", 0] },
-            telefonoUsuario: { $arrayElemAt: ["$mantenimiento_juego.TELEFONO", 0] }
-        }
+                }
     },
+
     {
         $project: {
-            _id: 1,
-            nivelEscalamiento: 1,
-            nombreUsuario: 1,
-            emailUsuario: 1,
-            telefonoUsuario: 1
+            _id: 0,
+            ID: 1,
+            USUARIOS: 1,
+            NIVEL_ESCALAMIENTO: 1
+        }
+    },
+
+    {
+        $out: {
+            db: "parque_recreativo",
+            coll: "incidencia_AGREGADO"
         }
     }
 ]);
+
+
+
+
+
+
+                 
