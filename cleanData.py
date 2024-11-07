@@ -32,7 +32,7 @@ tipos_via = [lista_autovia, lista_avenida, lista_calle, lista_carretera, lista_p
 NOMBRES_ARCHIVOS = {"AreasSucio.csv":
                         ["ID","DESC_CLASIFICACION","COD_BARRIO","BARRIO","COD_DISTRITO","DISTRITO","ESTADO","COORD_GIS_X","COORD_GIS_Y","SISTEMA_COORD",
                         "LATITUD", "LONGITUD", "TIPO_VIA","NOM_VIA","NUM_VIA","COD_POSTAL","DIRECCION_AUX","NDP","FECHA_INSTALACION","CODIGO_INTERNO","CONTRATO_COD",
-                        "TOTAL_ELEM","TIPO"], # tipo
+                        "TOTAL_ELEM","TIPO"],
 
                     "EncuestasSatisfaccionSucio.csv":
                         ["ID","PUNTUACION_ACCESIBILIDAD","PUNTUACION_CALIDAD","COMENTARIOS","AREA_RECREATIVA_ID","FECHA"],
@@ -50,11 +50,6 @@ NOMBRES_ARCHIVOS = {"AreasSucio.csv":
 
                     "MantenimientoSucio.csv": 
                         ["ID","FECHA_INTERVENCION","TIPO_INTERVENCION","ESTADO_PREVIO","ESTADO_POSTERIOR","JUEGO_ID","TIPO","COMENTARIOS"], #JuegoID, Tipo, Comentarios
-                    
-                    "meteo24.csv": 
-                        ["PROVINCIA", "MUNICIPIO", "ESTACION", "MAGNITUD", "PUNTO_MUESTREO", "ANO" ,"MES", "V01", "V02", "V03", "V04", "V05","V06", "V07", "V08", 
-                            "V09", "V10", "V11", "V12", "V13", "V14", "V15",  "V16", "V17",  "V18", "V19", "V20", "V21", "V22", "V23", "V24", "V25", 
-                            "V26", "V27", "V28", "V29", "V30", "V31"],
                     
                     "UsuariosSucio.csv": ["NIF", "NOMBRE", "EMAIL", "TELEFONO"] # descartamos email falso
                     }
@@ -124,7 +119,7 @@ class CSVProcessor:
         # Borrar informacion innecesaria
         if 'meteo24' not in self.ruta_archivo and 'estaciones' not in self.ruta_archivo:
             df = self.modify_columns(df)
-        
+
         # Rellenar datos incompletos de Juegos y Areas
         if 'JuegosSucio' in self.ruta_archivo or 'AreasSucio' in self.ruta_archivo:
             #Buscar considerando un diccionario los datos
@@ -182,11 +177,10 @@ class CSVProcessor:
                 except:
                     pass
 
-
             if "UsuariosSucio.csv" not in self.ruta_archivo and "meteo24.csv" not in self.ruta_archivo:
                 # Si no es "UsuariosSucio.csv" ni "meteo24.csv", usar el valor en la columna 'ID'
                 df[columna] = df.apply(
-                    lambda row: f"{row['ID']}-{columna}-ausente" if pd.isna(row[columna]) or str(row[columna]).strip() == '' else self.corregir_tipografia(row[columna]),
+                    lambda row: f"{row['ID']}-{columna}-ausente" if pd.isna(row[columna]) or str(row[columna]).strip() == '' or row[columna] == 'nan' else self.corregir_tipografia(row[columna]),
                     axis=1
                 )
             elif "UsuariosSucio.csv" in self.ruta_archivo:
@@ -197,22 +191,12 @@ class CSVProcessor:
                 )
             if "MantenimientoSucio.csv" in self.ruta_archivo:
                 # Cambia el orden del id de mantenimiento
-                if 'id' in columna.lower():
+                if 'id' == columna.lower():
                     try:
                         df[columna] = df[columna].map(lambda x: self.corregir_id(x))
                         print(f"Columna '{columna}' corregida.")
                     except Exception as e:
                         print(f"Error al convertir la columna '{columna}': {e}")
-            #if "IncidenciasUsuariosSucio.csv" in self.ruta_archivo:
-            #    # Pasa el string a tipo lista
-            #    if 'mantenimiento_id' in columna.lower():
-            #        try:
-            #            df[columna] = df[columna].map(lambda x: self.corregir_mantenimiento_id(x))
-            #            print(f"Columna '{columna}' corregida.")
-            #        except Exception as e:
-            #            print(f"Error al convertir la columna '{columna}': {e}")
-
-
 
         # Quitar las instancias duplicadas
         if 'ID' in df.columns:
@@ -223,21 +207,10 @@ class CSVProcessor:
             df.to_csv(self.ruta_archivo, index=False)
         elif 'meteo24' in self.ruta_archivo:
             self.modificar_meteo(df)
-        
-        #df.to_csv(self.ruta_archivo, index=False)
 
         print(
             f"Archivo '{self.ruta_archivo}' procesado y guardado con valores nulos, fechas estandarizadas y errores tipográficos corregidos.")
 
-    #def corregir_mantenimiento_id(self, valor:str):
-    #    """Funcion que corrige el formato de los valores en la columna mantenimiento_id en el archivo IncidenciasUsuarioSucio.csv"""
-    #    #valor = valor[1:-1]     # Eliminar los corchetes [...]
-    #    valor = valor.replace("'", "")  # Eliminar las comillas
-    #    valor = valor.replace('"', '')  # Eliminar las comillas dobles
-    #    
-    #    #valor = valor.split(',')    # Convertir a una lista
-    #    
-    #    return valor
 
     def corregir_id(self, id):
         """Método que modifica el formato de id de MantenimientoSucio.csv"""
@@ -271,16 +244,17 @@ class CSVProcessor:
             '%Y-%m-%d',             # Formato 2016-16-02
             '%m/%d/%Y'              # Formato 02/08/2016    
         ]
-
+        if pd.isna(fecha) or fecha.lower() == 'fecha_incorrecta':
+            return None  # Retorna directamente si la fecha es incorrecta
+        
         for formato in formatos:
             try:
                 # Intenta convertir la fecha al formato ISO
                 return pd.to_datetime(fecha, format=formato).isoformat()
+                 
             except (ValueError, TypeError):
                 continue  # Continúa al siguiente formato si hay un error
 
-        if not fecha or fecha == 'FECHA_INCORRECTA':
-            return None  # Retorna directamente si la fecha es incorrecta
 
         return None  # Si ninguno de los formatos funciona
 
@@ -315,19 +289,14 @@ class CSVProcessor:
             return None  # Continúa al siguiente formato si hay un error
 
     def corregir_tipografia(self, texto):
-
         try:
             if isinstance(texto, str):
                 texto = texto.upper()       # Convertir a mayusculas
-                texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8')
-                return texto
+                return unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8')
         except Exception as e:
             print(f"Error al corregir tipografía: {e}")
             return texto
         return texto
-
-    def pasar_a_lista(self, valor):
-        return list(valor)
 
 
     def procesar_archivos_csv(self):
@@ -338,11 +307,11 @@ class CSVProcessor:
                 if "meteo24" in self.ruta_archivo or 'estaciones' in self.ruta_archivo:
                     self.sustituir_puntos_y_comas() # Sustituir los ; por ,
                 
-                self.cargar_y_reemplazar_csv()
+                if "meteo24" in self.ruta_archivo: 
+                    self.cargar_y_reemplazar_csv()
 
 
     def direccion_auxiliar(self, registro: dict, comparador: list):
-        #Registro ausente: 4795141
         
         if 'TIPO_VIA' in comparador:
             registro['TIPO_VIA'] = self.tipo_via(registro)
@@ -443,6 +412,7 @@ class CSVProcessor:
     def modificar_meteo(self, df):
         """Método que crea un nuevo csv con los datos necesarios en el archivo meteo24.csv"""
         csv = []
+        id_registro = 0 # ID para registro meteorologico
 
         # Recorre todos los registros de meteo
         for registro in df.to_dict(orient='records'):
@@ -453,7 +423,7 @@ class CSVProcessor:
             if magnitud not in [81, 83, 89]:
                 continue # Salta a la siguiente iteración
 
-            for i in range(1,31):
+            for i in range(1,32):
 
                 # Guarda la fecha
                 if i < 10:
@@ -468,7 +438,7 @@ class CSVProcessor:
                 # Comprobar el mes
                 if registro['MES'] == 2:                    # Febreo
                     # Comprobar si el año es bisiesto
-                    if (registro['AÑO'] % 4 == 0 and registro['AÑO'] % 100 != 0) or (registro['AÑO'] % 400 == 0):
+                    if (registro['ANO'] % 4 == 0 and registro['ANO'] % 100 != 0) or (registro['ANO'] % 400 == 0):
                         max_dias = 29  # Año bisiesto
                     else:
                         max_dias = 28  # Año no bisiesto
@@ -480,14 +450,13 @@ class CSVProcessor:
                 
                 dia = 'D'+ string_i
 
-                fecha = str(i) + '-' + str(registro['MES']) + '-' + str(registro['ANO'])
+                fecha = str(registro['ANO']) + '-' + str(registro['MES']) + '-' + str(i) +'T00:00:00'
 
-                # Localiza la estación a la que pertenece
-                estacion = registro['ESTACION']
-              
+                # Localizar el código
+                codigo = registro['PUNTO_MUESTREO'].split('_')[0]
+
                 # Miramos si la fecha ya estaba en otro registro
-                
-                fechas = [d['FECHA'] for d in csv if d['DISTRITO'] == estacion]
+                fechas = [d['FECHA'] for d in csv if d['ID'] == id_registro]
                 if not fechas:
                     fechas = []
 
@@ -495,14 +464,14 @@ class CSVProcessor:
                     registro_nuevo = True
                     # Crea un registro nuevo
                     registro_aux = {
+                        'ID': id_registro,
                         'FECHA': fecha,
-                        'DISTRITO': estacion
+                        'CODIGO': codigo
                     }
+                    id_registro += 1
                 else:
                     registro_nuevo = False
-                    registro_aux = next((d for d in csv if d['FECHA'] == fecha and d['DISTRITO'] == estacion), None)
-
-                  
+                    registro_aux = next((d for d in csv if d['FECHA'] == fecha and d['CODIGO'] == codigo), None)                  
 
                 # Comprueba el tipo
                 if magnitud == 81: # Viento
@@ -524,14 +493,25 @@ class CSVProcessor:
                 else:
                     # Buscar y modificar el registro guardado
                     for elem in csv:
-                        if elem['FECHA'] == registro_aux['FECHA'] and elem['DISTRITO'] == registro_aux['DISTRITO']:
+                        if elem['FECHA'] == registro_aux['FECHA'] and elem['CODIGO'] == registro_aux['CODIGO']:
                             elem.update(registro_aux)
 
-         # Convertir a datagrama
+        for registro in csv:
+            claves = registro.keys()
+            if 'VIENTO' not in claves:
+                registro['VIENTO'] = False
+            if 'TEMPERATURA' not in claves:
+                registro['TEMPERATURA'] = 0.0
+            if 'PRECIPITACION' not in claves:
+                registro['PRECIPITACION'] = 0.0
+
+        # Convertir a datagrama
         df_estacion = pd.DataFrame(csv)
 
         # Guardar la informacion en un archivo.csv
         df_estacion.to_csv(self.directorio +'/MeteoModified.csv', index=False)
+
+        
 
         
 
