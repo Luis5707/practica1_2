@@ -90,9 +90,9 @@ db.createCollection("areaRecreativa", { // Validación areaRecreativa
                     description: "direccion_aux debe ser un string"
                 },
                 NDP: {
-                    bsonType: ['double', 'string'],
+                    bsonType: ['int', 'string'],
                     oneOf: [
-                        { bsonType: "double" },
+                        { bsonType: "int" },
                         { pattern: "^[0-9]+-NDP-ausente$", bsonType: "string" }
                     ],
                     description: "NDP debe ser un int"
@@ -214,11 +214,11 @@ db.createCollection('incidencia', { // Validación de incidencias
                     description: "estado debe ser un string con valor ABIERTA o CERRADA"
                 },
                 USUARIO_ID: {
-                    bsonType: 'string', // No se puede controlar porque no es un array xd
+                    bsonType: ['string', 'array'],
                     description: "usuario_id debe ser un string con formato de array"
                 },
                 MANTENIMIENTO_ID: {
-                    bsonType: 'string',
+                    bsonType: ['string', 'array'],
                     description: "mantenimiento_id debe ser un string con formato de array"
                 }
             }
@@ -378,9 +378,9 @@ db.createCollection('juego', {
                 },
 
                 NDP: {
-                    bsonType: ['double', 'string'],
+                    bsonType: ['int', 'string'],
                     oneOf: [
-                        { bsonType: "double" },
+                        { bsonType: "int" },
                         { pattern: "^[0-9]+-NDP-ausente$", bsonType: "string" }
                     ],
                     description: "NDP debe ser un int"
