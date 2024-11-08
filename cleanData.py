@@ -153,7 +153,7 @@ class CSVProcessor:
                     df.loc[df['ID'] == registro['ID'], ['NUM_VIA']] = registro['NUM_VIA']
 
         for columna in df.columns:
-            if 'COD_DISTRITO' in columna or 'COD_POSTAL' in columna:
+            if 'COD_DISTRITO' in columna or 'COD_POSTAL' in columna or 'NDP' in columna:
                 try:
                     df[columna] = df[columna].map(lambda x: self.corregir_codigos(x))
                     print(f"Columna '{columna}' corregida.")
@@ -307,8 +307,7 @@ class CSVProcessor:
                 if "meteo24" in self.ruta_archivo or 'estaciones' in self.ruta_archivo:
                     self.sustituir_puntos_y_comas() # Sustituir los ; por ,
                 
-                if "meteo24" in self.ruta_archivo: 
-                    self.cargar_y_reemplazar_csv()
+                self.cargar_y_reemplazar_csv()
 
 
     def direccion_auxiliar(self, registro: dict, comparador: list):
