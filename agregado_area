@@ -1,36 +1,44 @@
 // Agregado: AreaRecreativa_Clima
 
-//Formato fecha de CLIMA. Pasa el atributo FECHA de formato string a formato ISODATE
-db.registroClima.aggregate([
-    {
-        $addFields: {
-            FECHA: {
-                $cond: {
-                    if: { $ne: ["$FECHA", null] },
-                    then: {
-                        $dateFromString: {
-                            dateString: "$FECHA"
-                        }
-                    },
-                    else: null
-                }
-            }
-        }
-    },
-        {
-        $project: {
-            FECHA: 1
-        }
-    },
-    /*
-    {
-        $out: "registroClima" // Guarda los documentos modificados en la misma colección
-    }
-    */
-]);
-
 // ** Crea la colección areaRecreativa_Clima ** 
 db.areaRecreativa.aggregate([
+    {
+        $lookup: { // Obtiene la estacion de clima asociada al área según el COD_POSTAL
+            from: "estaciones",
+            localField: "COD_POSTAL", 
+            foreignField: "Codigo Postal",
+            as: "ESTACIONES"
+        }
+    },
+    {
+    $unwind: "$ESTACIONES"
+    },
+    // Hacer un lookup para encontrar los datos meteorológicos relacionados
+    {
+        $lookup: {
+        from: "registroClima", // Colección a relacionar
+        localField: "ESTACIONES.CÓDIGO", // Campo en `areas`
+        foreignField: "CODIGO", // Campo en `datos_meteorologicos`
+        as: "datos_clima" // Resultado de la relación
+        }
+    },
+    // Agrupar de vuelta los datos para reconstruir los documentos originales
+    {
+        $group: {
+        _id: "$_id",
+        CLIMA: { $push: { $first: "$datos_clima" } }, // Construir la lista CLIMA
+        ESTACIONES: { $push: "$ESTACIONES" },
+        AREA: { $first: "$$ROOT" } // Preservar el documento completo original
+        }
+    },
+    // Combinar el documento original con la lista CLIMA
+    {
+        $replaceRoot: {
+        newRoot: {
+            $mergeObjects: ["$AREA", { CLIMA: "$CLIMA" }]
+        }
+        }
+    },
     {
         $lookup: {  // Obtiene los juegos asociados al área según NDP
             from: "juego", 
@@ -45,14 +53,6 @@ db.areaRecreativa.aggregate([
             localField: "ID", 
             foreignField: "AREA_RECREATIVA_ID",
             as: "INCIDENTES"
-        }
-    },
-    {
-        $lookup: { // Obtiene el clima asociado al área según el ID
-            from: "registroClima",
-            localField: "COD_BARRIO", 
-            foreignField: "DISTRITO",
-            as: "CLIMA"
         }
     },
     {
@@ -179,10 +179,13 @@ db.areaRecreativa_Clima_AGREGADO.aggregate([
             "INCIDENTES.FECHA_REPORTE": 1,
             "INCIDENTES.TIPO_INCIDENTE": 1,
             "INCIDENTES.GRAVEDAD": 1,
-            CLIMA: 1,
+            "CLIMA.ID": 1,
             "ENCUESTAS.ID": 1,
             ESTADO_GLOBAL_AREA: 1,
             CANTIDAD_JUEGOS_POR_TIPO: 1
         }
+    },
+    {
+        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima_AGREGADO" }
     }
 ]);
