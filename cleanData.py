@@ -51,7 +51,9 @@ NOMBRES_ARCHIVOS = {"AreasSucio.csv":
                     "MantenimientoSucio.csv": 
                         ["ID","FECHA_INTERVENCION","TIPO_INTERVENCION","ESTADO_PREVIO","ESTADO_POSTERIOR","JUEGO_ID","TIPO","COMENTARIOS"], #JuegoID, Tipo, Comentarios
                     
-                    "UsuariosSucio.csv": ["NIF", "NOMBRE", "EMAIL", "TELEFONO"] # descartamos email falso
+                    "UsuariosSucio.csv": ["NIF", "NOMBRE", "EMAIL", "TELEFONO"], # descartamos email falso
+
+                    "estaciones_meteo_CodigoPostal.csv": ["CODIGO", "DIRECCION", "CODIGO_POSTAL"]
                     }
 
 
@@ -77,22 +79,27 @@ class CSVProcessor:
                 if nombre == "AreasSucio.csv":
                     df = self.cambio_nombre('tipo', 'TIPO', df)
                 
-                if nombre == "EncuestasSatisfaccionSucio.csv" or nombre == "IncidentesSeguridadSucio.csv":
+                elif nombre == "EncuestasSatisfaccionSucio.csv" or nombre == "IncidentesSeguridadSucio.csv":
                     df = self.cambio_nombre("AreaRecreativaID", "AREA_RECREATIVA_ID", df)
 
-                if nombre == "JuegosSucio.csv":
+                elif nombre == "JuegosSucio.csv":
                     df = self.cambio_nombre('tipo_juego', 'TIPO_JUEGO', df)
                     # Crear valores aleatorios en JuegosSucio.csv
                     df = self.value_indicador_juego(df)
 
-                if nombre == "IncidenciasUsuariosSucio.csv":
+                elif nombre == "IncidenciasUsuariosSucio.csv":
                     df = self.cambio_nombre('MantenimeintoID', 'MANTENIMIENTO_ID', df)
                     df = self.cambio_nombre('UsuarioID', 'USUARIO_ID', df)
                 
-                if nombre == "MantenimientoSucio.csv":
+                elif nombre == "MantenimientoSucio.csv":
                     df = self.cambio_nombre('Tipo', 'TIPO', df)
                     df = self.cambio_nombre('JuegoID', 'JUEGO_ID', df)
                     df = self.cambio_nombre('Comentarios', 'COMENTARIOS', df)
+
+                elif nombre == "estaciones_meteo_CodigoPostal":
+                    df = self.cambio_nombre('Código', 'CODIGO', df)
+                    df = self.cambio_nombre('Direccion', 'DIRECCION', df)
+                    df = self.cambio_nombre('Codigo Postal', 'CODIGO_POSTAL', df)
                 
                 df = df[NOMBRES_ARCHIVOS[nombre]]
 
