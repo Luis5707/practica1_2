@@ -1,6 +1,254 @@
 use parque_recreativo;
 
-db.runCommand({ // Validación AreaRecreativa
+// ****** PREPROCESADO DE DATOS ******
+// Convierte a lista MANTENIMIENTO_ID 
+db.incidencia.updateMany(
+   {},
+   [
+      {
+         $set: {
+            MANTENIMIENTO_ID: {
+               $function: {
+                  body: function(str) {
+                     const cleanStr = str.replace(/[\[\]']/g, "");
+                     return cleanStr.split(", ").map(item => item.trim());
+                  },
+                  args: ["$MANTENIMIENTO_ID"],
+                  lang: "js"
+               }
+            }
+         }
+      }
+   ]
+);
+
+// Convierte a lista USUARIO_ID 
+db.incidencia.updateMany(
+   {},
+   [
+      {
+         $set: {
+            USUARIO_ID: {
+               $function: {
+                  body: function(str) {
+                     const cleanStr = str.replace(/[\[\]']/g, "");
+                     return cleanStr.split(", ").map(item => item.trim());
+                  },
+                  args: ["$USUARIO_ID"],  
+                  lang: "js"
+               }
+            }
+         }
+      }
+   ]
+);
+
+// Convierte a formato 'date' FECHA_INTERVENCION en mantenimiento
+db.mantenimiento.aggregate([
+    {
+        $addFields: {
+            FECHA_INTERVENCION: {
+                $cond: {
+                    if: { $ne: ["$FECHA_INTERVENCION", null] },
+                    then: {
+                        $dateFromString: {
+                            dateString: "$FECHA_INTERVENCION",
+                            format: "%Y-%m-%dT%H:%M:%S" 
+                        }
+                    },
+                    else: "$FECHA_INTERVENCION"
+                }
+            }
+        }
+    },
+    {
+        $out: "mantenimiento" 
+    }
+]);
+
+
+// Convierte a formato 'date' FECHA_REPORTE en incidencia
+db.incidencia.aggregate([
+    {
+        $addFields: {
+            FECHA_REPORTE: {
+                $cond: {
+                    if: { $ne: ["$FECHA_REPORTE", null] },
+                    then: {
+                        $dateFromString: {
+                            dateString: "$FECHA_REPORTE",
+                            format: "%Y-%m-%dT%H:%M:%S"
+                        }
+                    },
+                    else: "$FECHA_REPORTE"
+                }
+            }
+        }
+    },
+    {
+        $out: "incidencia" 
+    }
+]);
+
+// Convierte a formato 'date' FECHA en registroClima
+db.registroClima.aggregate([
+    {
+        $addFields: {
+            FECHA: {
+                $cond: {
+                    if: { $ne: ["$FECHA", null] },
+                    then: {
+                        $dateFromString: {
+                            dateString: "$FECHA"
+                        }
+                    },
+                    else: "$FECHA"
+                }
+            }
+        }
+    },
+    {
+        $out: "registroClima" 
+    }
+]);
+
+// Convierte a formato 'date' FECHA en encuestaSatisfaccion
+db.encuestaSatisfaccion.aggregate([
+    {
+        $addFields: {
+            FECHA: {
+                $cond: {
+                    if: { $ne: ["$FECHA", null] },
+                    then: {
+                        $dateFromString: {
+                            dateString: "$FECHA"
+                        }
+                    },
+                    else: "$FECHA"
+                }
+            }
+        }
+    },
+    {
+        $out: "encuestaSatisfaccion" 
+    }
+]);
+
+// Convierte a formato 'date' FECHA_REPORTE en IncidenteSeguridad
+db.incidenteSeguridad.aggregate([
+    {
+        $addFields: {
+            FECHA_REPORTE: {
+                $cond: {
+                    if: { $ne: ["$FECHA_REPORTE", null] },
+                    then: {
+                        $dateFromString: {
+                            dateString: "$FECHA_REPORTE",
+                            format: "%Y-%m-%dT%H:%M:%S" 
+                        }
+                    },
+                    else: "$FECHA_REPORTE"
+                }
+            }
+        }
+    },
+    {
+        $out: "incidenteSeguridad" 
+    }
+]);
+
+// Conveierte a formato 'date' FECHA_INSTALACION en AreaRecreativa
+db.areaRecreativa.aggregate([
+    {
+        $addFields: {
+            FECHA_INSTALACION: {
+                $cond: {
+                    if: {
+                        $and: [
+                            { $ne: ["$FECHA_INSTALACION", null] },
+                            { $not: { $regexMatch: { input: "$FECHA_INSTALACION", regex: /ausente/ } } }
+                        ]
+                    },
+                    then: {
+                        $dateFromString: {
+                            dateString: "$FECHA_INSTALACION",
+                            format: "%Y-%m-%dT%H:%M:%S" 
+                        }
+                    },
+                    else: "$FECHA_INSTALACION"
+                }
+            }
+        }
+    },
+    {
+        $out: "areaRecreativa" 
+    }
+]);
+
+// Convierte a formato 'date' FECHA_INSTALACION en Juego
+db.juego.aggregate([
+    {
+        $addFields: {
+            FECHA_INSTALACION: {
+                $cond: {
+                    if: {
+                        $and: [
+                            { $ne: ["$FECHA_INSTALACION", null] },
+                            { $not: { $regexMatch: { input: "$FECHA_INSTALACION", regex: /ausente/ } } }
+                        ]
+                    },
+                    then: {
+                        $dateFromString: {
+                            dateString: "$FECHA_INSTALACION",
+                            format: "%Y-%m-%dT%H:%M:%S" 
+                        }
+                    },
+                    else: "$FECHA_INSTALACION"
+                }
+            }
+        }
+    },
+    {
+        $out: "juego" 
+    }
+]);
+
+// Crea el campo CODIGO_POSTAL en registroClima
+db.registroClima.aggregate([
+    {
+        $lookup: {
+            from: "estaciones",   
+            localField: "CODIGO", 
+            foreignField: "CODIGO",
+            as: "estacion"   
+        }
+    },
+    {
+        $unwind: {
+            path: "$estacion",
+            preserveNullAndEmptyArrays: true 
+        }
+    },
+    {
+        $addFields: {
+            COD_POSTAL: "$estacion.CODIGO_POSTAL" 
+        }
+    },
+    {
+        $project: {
+            estacion: 0
+        }
+    },
+    {
+        $out: "registroClima"
+    }
+]);
+
+
+
+// ****** VALIDACIONES ******
+// Validación AreaRecreativa
+db.runCommand({ 
     collMod: "areaRecreativa",
     validator: {
         $jsonSchema: {
@@ -137,7 +385,8 @@ db.runCommand({ // Validación AreaRecreativa
     }
 });
 
-db.runCommand({ // Validación de EncuestaSatisfaccion
+// Validación de EncuestaSatisfaccion
+db.runCommand({ 
     collMod: "encuestaSatisfaccion", 
     validator: {
         $jsonSchema: {
@@ -186,7 +435,8 @@ db.runCommand({ // Validación de EncuestaSatisfaccion
     }
 });
 
-db.runCommand({ // Validación de Incidencia
+// Validación de Incidencia
+db.runCommand({ 
     collMod: "incidencia",
     validator: {
         $jsonSchema: {
@@ -231,7 +481,8 @@ db.runCommand({ // Validación de Incidencia
     }
 });
 
-db.runCommand( { // Validacion de incidenteSeguridad
+// Validacion de incidenteSeguridad
+db.runCommand( { 
     collMod: "incidenteSeguridad",
     validator: {
         $jsonSchema: {
@@ -269,7 +520,8 @@ db.runCommand( { // Validacion de incidenteSeguridad
     }
 });
 
-db.runCommand({    // Validacion de Usuario
+// Validacion de Usuario
+db.runCommand({    
     collMod: "usuario", 
     validator: {
         $jsonSchema: {
@@ -297,7 +549,8 @@ db.runCommand({    // Validacion de Usuario
     }
 });
 
-db.runCommand({  // Validación de Juego
+// Validación de Juego
+db.runCommand({  
     collMod: "juego" ,
     validator: {
         $jsonSchema: {
@@ -440,7 +693,8 @@ db.runCommand({  // Validación de Juego
     }
 });
 
-db.runCommand({  // Validacion de Mantenimiento
+// Validacion de Mantenimiento
+db.runCommand({  
     collMod: "mantenimiento",
     validator: {
         $jsonSchema: {
@@ -493,8 +747,8 @@ db.runCommand({  // Validacion de Mantenimiento
     }
 });
 
-
-db.runCommand({  // Validación de RegistroClima
+// Validación de RegistroClima
+db.runCommand({  
     collMod: "registroClima",
     validator: {
         $jsonSchema: {
@@ -525,3 +779,424 @@ db.runCommand({  // Validación de RegistroClima
         }
     }
 });
+
+
+
+// ****** AGREGADO DE AREARECREATIVA_CLIMA ******
+// Crea el agregado con las colecciones necesarias 
+db.areaRecreativa.aggregate([
+    {
+        $lookup: { // Obtiene la estacion de clima asociada al área según el COD_POSTAL
+            from: "registroClima",
+            localField: "COD_POSTAL", 
+            foreignField: "COD_POSTAL",
+            as: "CLIMA"
+        }
+    },
+    {
+        $lookup: {  // Obtiene los juegos asociados al área según NDP
+            from: "juego", 
+            localField: "NDP", 
+            foreignField: "NDP",
+            as: "JUEGOS"
+        } 
+    },
+    {
+        $lookup: { // Obtiene los incidentes asociados al área según el ID
+            from: "incidenteSeguridad",
+            localField: "ID", 
+            foreignField: "AREA_RECREATIVA_ID",
+            as: "INCIDENTES"
+        }
+    },
+    {
+        $lookup: { // Obtiene las encuestas asociadas al área según el ID
+            from: "encuestaSatisfaccion",
+            localField: "ID", 
+            foreignField: "AREA_RECREATIVA_ID",
+            as: "ENCUESTAS"
+        }
+    },
+    {
+        $project: {
+            ID: 1,
+            JUEGOS: 1,
+            INCIDENTES: 1,
+            CLIMA: 1,
+            "ENCUESTAS.ID": 1,
+            "ENCUESTAS.COMENTARIOS": 1,
+        }
+    },
+    {
+        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima_AGREGADO" }
+    }
+]);
+
+// Añade la columna de la puntuación
+db.areaRecreativa_Clima_AGREGADO.aggregate([
+    {
+        $addFields: { // Calcula la puntuación según el comentario
+            PUNTUACION: {
+                $map: {
+                    input: "$ENCUESTAS.COMENTARIOS",
+                    as: "comentario",
+                    in: {
+                        $switch: {
+                            branches: [
+                                { case: { $eq: ["$$comentario", "EXCELENTE"] }, then: 5 },
+                                { case: { $eq: ["$$comentario", "MUY BUENO"] }, then: 4 },
+                                { case: { $eq: ["$$comentario", "ACEPTABLE"] }, then: 3 },
+                                { case: { $eq: ["$$comentario", "REGULAR"] }, then: 2 },
+                                { case: { $eq: ["$$comentario", "DEFICIENTE"] }, then: 1 }
+                            ],
+                            default: 0
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        $addFields: {   
+            PUNTUACION_COMENTARIOS: { $sum: "$PUNTUACION" }, // Suma la puntuación de cada comentario de cada encuesta para un juego
+            JUEGOS_EN_REPARACION: {   // Calcula el número de juegos en reparación
+                $size: {
+                    $filter: {
+                        input: "$JUEGOS",
+                        as: "juego",
+                        cond: { $eq: ["$$juego.ESTADO", "EN REPARACION"] }
+                    }
+                }
+            },
+            TOTAL_INCIDENTES_SEGURIDAD: { // Calcula el número de incidentes que hay por área
+                $size: "$INCIDENTES" 
+            }
+        }
+    },
+    {
+        $addFields: {   // Calcula la puntuación total
+            ESTADO_GLOBAL_AREA: {
+                $subtract: [
+                    { $subtract: ["$PUNTUACION_COMENTARIOS", "$JUEGOS_EN_REPARACION"] },
+                    "$TOTAL_INCIDENTES_SEGURIDAD"
+                ]
+            }
+        }
+    },
+    {
+        $project: {
+            _id: 1,
+            ID: 1,
+            JUEGOS: 1,
+            INCIDENTES: 1,
+            CLIMA: 1,
+            "ENCUESTAS.ID": 1,
+            "ENCUESTAS.COMENTARIOS": 1,
+            ESTADO_GLOBAL_AREA: 1
+        }
+    },
+    {
+        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima_AGREGADO" }
+    }
+]);
+
+// Calcula el numero de tipos por juego y almacena unicamente los campos necesarios
+db.areaRecreativa_Clima_AGREGADO.aggregate([
+    {
+        $set: {
+        CANTIDAD_JUEGOS_POR_TIPO: {
+            $arrayToObject: {
+            $map: {
+                input: { $setUnion: "$JUEGOS.TIPO_JUEGO" },
+                as: "tipo",
+                in: {
+                k: "$$tipo",
+                v: {
+                    $size: {
+                    $filter: {
+                        input: "$JUEGOS",
+                        cond: { $eq: ["$$this.TIPO_JUEGO", "$$tipo"] }
+                    }
+                    }
+                }
+                }
+            }
+            }
+        }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            ID: 1,
+            "JUEGOS.ID": 1,
+            "INCIDENTES.ID": 1,
+            "INCIDENTES.FECHA_REPORTE": 1,
+            "INCIDENTES.TIPO_INCIDENTE": 1,
+            "INCIDENTES.GRAVEDAD": 1,
+            "CLIMA.ID": 1,
+            "ENCUESTAS.ID": 1,
+            ESTADO_GLOBAL_AREA: 1,
+            CANTIDAD_JUEGOS_POR_TIPO: 1
+        }
+    },
+    {
+        $out: { db: "parque_recreativo", coll: "areaRecreativa_Clima_AGREGADO" }
+    }
+]);
+
+
+
+// ****** AGREGADO JUEGO ******
+// Crea el agregado de Juego y calcula el desgaste
+db.juego.aggregate([
+    {
+        $lookup: {
+            from: "mantenimiento",
+            localField: "ID",
+            foreignField: "JUEGO_ID",
+            as: "MANTENIMIENTOS"
+        }
+    },
+    {
+        $addFields: {
+            mantenimientoIDs: {
+                $map: {
+                    input: "$MANTENIMIENTOS",
+                    as: "mantenimiento",
+                    in: "$$mantenimiento.ID"
+                }
+            }
+        }
+    },
+    {
+        $lookup: {
+            from: "incidencia",
+            let: { mantenimientoIDs: "$mantenimientoIDs" },
+            pipeline: [
+                {
+                    $match: {
+                        $expr: {
+                            $gt: [
+                                { $size: { $setIntersection: ["$MANTENIMIENTO_ID", "$$mantenimientoIDs"] } },
+                                0
+                            ] 
+                        }
+                    }
+                },
+                {
+                    $sort: { FECHA_REPORTE: 1 } // Ordena las incidencias por FECHA_REPORTE en orden ascendente
+                }
+            ],
+            as: "INCIDENCIAS"
+        }
+    },
+    {
+      $addFields: {
+        TIEMPO_DE_USO: { $add: [{ $floor: { $multiply: [ { $rand: {} }, 15 ] } }, 1] }
+      }
+    },
+    {
+      $addFields: {
+        DESGASTE_ACUMULADO: {
+          $subtract: [
+            {
+              $multiply: [ "$TIEMPO_DE_USO",
+                {
+                  $switch: {
+                    branches: [
+                      { case: { $eq: ["$INDICADOR_EXPOSICION", "BAJO"] }, then: 1 },
+                      { case: { $eq: ["$INDICADOR_EXPOSICION", "MEDIO"] }, then: 2 },
+                      { case: { $eq: ["$INDICADOR_EXPOSICION", "ALTO"] }, then: 3 }
+                    ],
+                    default: 1 
+                  }
+                }
+              ]
+            },
+            {
+              $size: "$MANTENIMIENTOS" 
+            }
+          ]
+        }
+      }
+    },
+    {
+        $project: {
+            _id: 0,
+            ID: 1,
+            MANTENIMIENTOS: 1,
+            INCIDENCIAS: 1,
+            DESGASTE_ACUMULADO: 1
+        }
+    },
+    {
+        $out: {
+            db: "parque_recreativo",
+            coll: "juego_AGREGADO"
+        }
+    }
+]);
+
+// Añade los campos ultimoMantenimiento y tiempoResolucion
+db.juego_AGREGADO.aggregate([
+    {
+        $addFields: {
+            ULTIMO_MANTENIMIENTO: {
+                $reduce: {
+                    input: "$MANTENIMIENTOS",
+                    initialValue: null,
+                    in: {
+                        $cond: {
+                            if: {
+                                $or: [
+                                    { $eq: ["$$value", null] },
+                                    { $gt: [{ $toDate: "$$this.FECHA_INTERVENCION" }, { $toDate: "$$value.FECHA_INTERVENCION" }] }
+                                ]
+                            },
+                            then: "$$this",
+                            else: "$$value"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        $addFields: {
+            ULTIMA_FECHA_MANTENIMIENTO: {
+                $cond: {
+                    if: { $ne: ["$ULTIMO_MANTENIMIENTO", null] },
+                    then: { $toDate: "$ULTIMO_MANTENIMIENTO.FECHA_INTERVENCION" },
+                    else: null
+                }
+            }
+        }
+    },
+    {
+        $addFields: {
+            PRIMERA_INCIDENCIA: {
+                $arrayElemAt: [
+                    {
+                        $filter: {
+                            input: "$INCIDENCIAS",
+                            as: "incidencia",
+                            cond: {
+                                $in: ["$ULTIMO_MANTENIMIENTO.ID", "$$incidencia.MANTENIMIENTO_ID"]
+                            }
+                        }
+                    },
+                    0
+                ]
+            }
+        }
+    },
+    {
+        $addFields: {
+            PRIMERA_FECHA_REPORTE: {
+                $cond: {
+                    if: { $ne: ["$PRIMERA_INCIDENCIA", null] },
+                    then: { $toDate: "$PRIMERA_INCIDENCIA.FECHA_REPORTE" },
+                    else: null
+                }
+            }
+        }
+    },
+    {
+        $addFields: {
+            TIEMPO_RESOLUCION: {
+                $cond: {
+                    if: {
+                        $and: [
+                            { $ne: ["$ULTIMA_FECHA_MANTENIMIENTO", null] },
+                            { $ne: ["$PRIMERA_FECHA_REPORTE", null] }
+                        ]
+                    },
+                    then: {
+                        $dateDiff: {
+                            startDate: "$PRIMERA_FECHA_REPORTE",
+                            endDate: "$ULTIMA_FECHA_MANTENIMIENTO",
+                            unit: "day"
+                        }
+                    },
+                    else: null 
+                }
+            }
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            ID: 1,
+            "MANTENIMIENTOS.ID": 1,
+            "INCIDENCIAS.ID": 1,
+            "INCIDENCIAS.TIPO_INCIDENCIA": 1,
+            "INCIDENCIAS.FECHA_REPORTE": 1,
+            "INCIDENCIAS.ESTADO": 1,
+            DESGASTE_ACUMULADO: 1,
+            ULTIMA_FECHA_MANTENIMIENTO: 1,
+            TIEMPO_RESOLUCION: 1
+        }
+    },
+    {
+        $out: {
+            db: "parque_recreativo",
+            coll: "juego_AGREGADO"
+        }
+    }
+]);
+
+
+
+// ****** AGREGADO INCIDENCIA ******
+db.incidencia.aggregate([
+    {
+        $lookup: {
+            from: "usuario",
+            let: { usuarioIDs: "$USUARIO_ID" },
+            pipeline: [
+                {
+                    $match: {
+                        $expr: {
+                            $in: ["$NIF", "$$usuarioIDs"] 
+                        }
+                    }
+                }
+            ],
+            as: "USUARIOS"
+        }
+    },
+
+    {
+        $addFields: {
+            NIVEL_ESCALAMIENTO: {
+                        $switch: {
+                            branches: [
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "EXCELENTE"] }, then: 5 },
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "DESGASTE"] }, then: 4 },
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "VANDALISMO"] }, then: 3 },
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "ROTURA"] }, then: 2 },
+                                { case: { $eq: ["$TIPO_INCIDENCIA", "MAL FUNCIONAMIENTO"] }, then: 1 }
+                            ],
+                            default: 0
+                        }
+                    }
+                }
+    },
+
+    {
+        $project: {
+            _id: 0,
+            ID: 1,
+            USUARIOS: 1,
+            NIVEL_ESCALAMIENTO: 1
+        }
+    },
+
+    {
+        $out: {
+            db: "parque_recreativo",
+            coll: "incidencia_AGREGADO"
+        }
+    }
+]);

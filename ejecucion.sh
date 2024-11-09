@@ -1,14 +1,18 @@
 #!/bin/bash
 
+#1.Descomprime el zip con los ficheros sin procesar
 unzip Datasets_Practica_1.2.zip -d Datasets_Practica_1.2
 
+#2.Limpieza de ficheros
 python3 cleanData.py
 
+#3.Reinicia la base de datos por si no está vacia
 mongosh <<EOF
 use parque_recreativo;
 db.dropDatabase()
 EOF
 
+#4.Importa los ficheros a MongoDB
 mongoimport --db parque_recreativo --collection areaRecreativa --type csv --file Datasets_Practica_1.2/AreasSucio.csv --headerline
 mongoimport --db parque_recreativo --collection encuestaSatisfaccion --type csv --headerline --file Datasets_Practica_1.2/EncuestasSatisfaccionSucio.csv
 mongoimport --db parque_recreativo --collection incidencia --type csv --headerline --file Datasets_Practica_1.2/IncidenciasUsuariosSucio.csv
@@ -19,11 +23,7 @@ mongoimport --db parque_recreativo --collection mantenimiento --type csv --heade
 mongoimport --db parque_recreativo --collection registroClima --type csv --headerline --file Datasets_Practica_1.2/MeteoModified.csv
 mongoimport --db parque_recreativo --collection estaciones --type csv --headerline --file Datasets_Practica_1.2/estaciones_meteo_CodigoPostal.csv
 
-
-mongosh --quiet < /practica1_2/cambios_para_validacion.js
-mongosh --quiet < /practica1_2/migrations.js
-mongosh --quiet < /practica1_2/agregado_area.js
-mongosh --quiet < /practica1_2/agregado_juego.js
-mongosh --quiet < /practica1_2/agregado_incidencia.js
+#5.Ejecuta todo el script de MongoDB
+mongosh --quiet < /practica1_2/migrations.txt
 
 echo "Ejecucion finalizada"
