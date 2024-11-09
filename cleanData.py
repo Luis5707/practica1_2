@@ -124,7 +124,7 @@ class CSVProcessor:
         df = pd.read_csv(self.ruta_archivo)
 
         # Borrar informacion innecesaria
-        if 'meteo24' not in self.ruta_archivo and 'estaciones' not in self.ruta_archivo:
+        if 'meteo24' not in self.ruta_archivo:
             df = self.modify_columns(df)
 
         # Rellenar datos incompletos de Juegos y Areas
