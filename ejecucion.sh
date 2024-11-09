@@ -1,5 +1,14 @@
 #!/bin/bash
 
+unzip Datasets_Practica_1.2.zip -d Datasets_Practica_1.2
+
+python3 cleanData.py
+
+mongosh <<EOF
+use parque_recreativo;
+db.dropDatabase()
+EOF
+
 mongoimport --db parque_recreativo --collection areaRecreativa --type csv --file Datasets_Practica_1.2/AreasSucio.csv --headerline
 mongoimport --db parque_recreativo --collection encuestaSatisfaccion --type csv --headerline --file Datasets_Practica_1.2/EncuestasSatisfaccionSucio.csv
 mongoimport --db parque_recreativo --collection incidencia --type csv --headerline --file Datasets_Practica_1.2/IncidenciasUsuariosSucio.csv
