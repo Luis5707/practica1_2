@@ -1,4 +1,5 @@
 // Agregado: AreaRecreativa_Clima
+use parque_recreativo;
 
 // ** Crea la colección areaRecreativa_Clima ** 
 db.areaRecreativa.aggregate([

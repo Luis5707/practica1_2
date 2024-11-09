@@ -1,4 +1,7 @@
-db.createCollection("areaRecreativa", { // Validación areaRecreativa
+use parque_recreativo;
+
+db.runCommand({ // Validación AreaRecreativa
+    collMod: "areaRecreativa",
     validator: {
         $jsonSchema: {
             bsonType: 'object',
@@ -57,7 +60,7 @@ db.createCollection("areaRecreativa", { // Validación areaRecreativa
                     maximum: 180,
                     description: "longitud debe ser un valor double entre -180 y 180"
                 },
-                TIPO_VIA: {     // Hay que revisar lo de ausente
+                TIPO_VIA: {
                     bsonType: 'string',
                     oneOf: [
                         { enum: ["CALLE", "AUTOVIA", "AVENIDA", "CARRETERA", "PARQUE", "PASEO", "PLAZA", "GLORIETA", "BULEVAR", "TRAVESIA", "CAMINO", "CUESTA", "PASAJE", "RONDA"] },
@@ -134,7 +137,8 @@ db.createCollection("areaRecreativa", { // Validación areaRecreativa
     }
 });
 
-db.createCollection("encuestaSatisfaccion", { // Validación de encuestasSatisfaccion
+db.runCommand({ // Validación de EncuestaSatisfaccion
+    collMod: "encuestaSatisfaccion", 
     validator: {
         $jsonSchema: {
             bsonType: 'object',
@@ -182,7 +186,8 @@ db.createCollection("encuestaSatisfaccion", { // Validación de encuestasSatisfa
     }
 });
 
-db.createCollection('incidencia', { // Validación de incidencias
+db.runCommand({ // Validación de Incidencia
+    collMod: "incidencia",
     validator: {
         $jsonSchema: {
             bsonType: 'object',
@@ -226,7 +231,8 @@ db.createCollection('incidencia', { // Validación de incidencias
     }
 });
 
-db.createCollection('incidenteSeguridad', { // Validacion de incidenteSeguridad
+db.runCommand( { // Validacion de incidenteSeguridad
+    collMod: "incidenteSeguridad",
     validator: {
         $jsonSchema: {
             bsonType: 'object',
@@ -263,7 +269,8 @@ db.createCollection('incidenteSeguridad', { // Validacion de incidenteSeguridad
     }
 });
 
-db.createCollection('usuario', {    // Validacion de Usuarios
+db.runCommand({    // Validacion de Usuario
+    collMod: "usuario", 
     validator: {
         $jsonSchema: {
             bsonType: 'object',
@@ -290,7 +297,8 @@ db.createCollection('usuario', {    // Validacion de Usuarios
     }
 });
 
-db.createCollection('juego', {
+db.runCommand({  // Validación de Juego
+    collMod: "juego" ,
     validator: {
         $jsonSchema: {
             bsonType: 'object',
@@ -432,7 +440,8 @@ db.createCollection('juego', {
     }
 });
 
-db.createCollection('mantenimiento', {
+db.runCommand({  // Validacion de Mantenimiento
+    collMod: "mantenimiento",
     validator: {
         $jsonSchema: {
             bsonType: 'object',
@@ -485,7 +494,8 @@ db.createCollection('mantenimiento', {
 });
 
 
-db.createCollection('registroClima', {
+db.runCommand({  // Validación de RegistroClima
+    collMod: "registroClima",
     validator: {
         $jsonSchema: {
             bsonType: 'object',
@@ -512,15 +522,3 @@ db.createCollection('registroClima', {
         }
     }
 });
-
-
-// Funciona con su validación :3
-mongoimport --db parque_recreativo --collection areaRecreativa --type csv --file Datasets_Practica_1.2/AreasSucio.csv --headerline;
-mongoimport --db parque_recreativo --collection encuestaSatisfaccion --type csv --headerline --file Datasets_Practica_1.2/EncuestasSatisfaccionSucio.csv;
-mongoimport --db parque_recreativo --collection incidencia --type csv --headerline --file Datasets_Practica_1.2/IncidenciasUsuariosSucio.csv;
-mongoimport --db parque_recreativo --collection incidenteSeguridad --type csv --headerline --file Datasets_Practica_1.2/IncidentesSeguridadSucio.csv;
-mongoimport --db parque_recreativo --collection usuario --type csv --headerline --file Datasets_Practica_1.2/UsuariosSucio.csv;
-mongoimport --db parque_recreativo --collection juego --type csv --headerline --file Datasets_Practica_1.2/JuegosSucio.csv;
-mongoimport --db parque_recreativo --collection mantenimiento --type csv --headerline --file Datasets_Practica_1.2/MantenimientoSucio.csv;
-mongoimport --db parque_recreativo --collection registroClima --type csv --headerline --file Datasets_Practica_1.2/MeteoModified.csv;
-mongoimport --db parque_recreativo --collection estaciones --type csv --headerline --file Datasets_Practica_1.2/estaciones_meteo_CodigoPostal.csv;

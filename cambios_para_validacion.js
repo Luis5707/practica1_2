@@ -57,7 +57,7 @@ db.mantenimiento.aggregate([
                             format: "%Y-%m-%dT%H:%M:%S" // Formato para tu fecha en el CSV
                         }
                     },
-                    else: null
+                    else: "$FECHA_INTERVENCION"
                 }
             }
         }
@@ -81,7 +81,7 @@ db.incidencia.aggregate([
                             format: "%Y-%m-%dT%H:%M:%S" // Formato para tu fecha en el CSV
                         }
                     },
-                    else: null
+                    else: "$FECHA_REPORTE"
                 }
             }
         }
@@ -103,7 +103,7 @@ db.registroClima.aggregate([
                             dateString: "$FECHA"
                         }
                     },
-                    else: null
+                    else: "$FECHA"
                 }
             }
         }
@@ -125,7 +125,7 @@ db.encuestaSatisfaccion.aggregate([
                             dateString: "$FECHA"
                         }
                     },
-                    else: null
+                    else: "$FECHA"
                 }
             }
         }
@@ -135,6 +135,7 @@ db.encuestaSatisfaccion.aggregate([
     }
 ]);
 
+// Convierte a formato 'date' FECHA_REPORTE en IncidenteSeguridad
 db.incidenteSeguridad.aggregate([
     {
         $addFields: {
@@ -147,7 +148,7 @@ db.incidenteSeguridad.aggregate([
                             format: "%Y-%m-%dT%H:%M:%S" // Formato para tu fecha en el CSV
                         }
                     },
-                    else: null
+                    else: "$FECHA_REPORTE"
                 }
             }
         }
@@ -157,6 +158,7 @@ db.incidenteSeguridad.aggregate([
     }
 ]);
 
+// Conveierte a formato 'date' FECHA_INSTALACION en AreaRecreativa
 db.areaRecreativa.aggregate([
     {
         $addFields: {
@@ -174,7 +176,7 @@ db.areaRecreativa.aggregate([
                             format: "%Y-%m-%dT%H:%M:%S" // Formato para tu fecha en el CSV
                         }
                     },
-                    else: null
+                    else: "$FECHA_INSTALACION"
                 }
             }
         }
@@ -184,6 +186,7 @@ db.areaRecreativa.aggregate([
     }
 ]);
 
+// Convierte a formato 'date' FECHA_INSTALACION en Juego
 db.juego.aggregate([
     {
         $addFields: {
@@ -201,7 +204,7 @@ db.juego.aggregate([
                             format: "%Y-%m-%dT%H:%M:%S" // Formato para tu fecha en el CSV
                         }
                     },
-                    else: null
+                    else: "$FECHA_INSTALACION"
                 }
             }
         }
