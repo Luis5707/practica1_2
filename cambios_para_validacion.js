@@ -1,3 +1,4 @@
+use parque_recreativo;
 // ** Convierte a lista MANTENIMIENTO_ID **
 db.incidencia.updateMany(
    {},
@@ -212,4 +213,35 @@ db.juego.aggregate([
     {
         $out: "juego" // Guarda los documentos modificados en la misma colección
     }
+]);
+
+db.registroClima.aggregate([
+    {
+        $lookup: {
+            from: "estaciones",   
+            localField: "CODIGO", 
+            foreignField: "CODIGO",
+            as: "estacion"   
+        }
+    },
+    {
+        $unwind: {
+            path: "$estacion",
+            preserveNullAndEmptyArrays: true 
+        }
+    },
+    {
+        $addFields: {
+            COD_POSTAL: "$estacion.CODIGO_POSTAL" 
+        }
+    },
+    {
+        $project: {
+            estacion: 0
+        }
+    },
+    {
+        $out: "registroClima"
+    }
+
 ]);

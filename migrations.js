@@ -517,7 +517,10 @@ db.runCommand({  // Validación de RegistroClima
                 },
                 PRECIPITACION: {
                     bsonType: "double"
-                }
+                },
+		COD_POSTAL: {
+		    bsonType: "int"
+		}
             }
         }
     }
