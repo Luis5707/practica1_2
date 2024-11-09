@@ -5,19 +5,6 @@ import os
 from datetime import datetime
 import unicodedata
 import re
-# TODO -- Cambiar formato de mantenimiento ID
-
-#TODO Variables para las clases de cada base
-
-#CLASES_AREA = ["ID", "LATITUD", "LONGITUD", "BARRIO", "DISTRITO", "ESTADO", "FECHA_INSTALACION", "TOTAL_ELEM"]
-#CLASE_SATISFACCION = ["ID", "FECHA","PUNTUACION_ACCESIBILIDAD", "PUNTUACION_CALIDAD", "COMENTARIOS"]
-#CLASE_USUARIO = ["NIF", "NOMBRE", "EMAIL", "TELEFONO"]
-#CLASE_INCICENDIA_USUARIO = ["ID", "TIPO_INCIDENCIA", "FECHA_REPORTE", "ESTADO"] # TODO FALTA TIEMPO RESOLUCION
-#CLASE_INCIDENCIA_SEGURIDAD = ["ID", "FECHA_REPORTE", "TIPO_INCIDENTE", "GRAVEDAD"]
-#CLASE_JUEGO = ["ID","DESC_CLASIFICACION", "MODELO", "ESTADO", "ACCESIBLE", "FECHA_INSTALACION", "TIPO_JUEGO", "FECHA_INTERVENCION", "LATITUD", "LONGITUD"] # TODO desgasteAcumulado, indicadorExposicion no sabemos-- suponemos ultimaFechaMantenimiento de Mantenimiento
-#CLASE_MANTENIMIENTO = ["ID", "FECHA_INTERVENCION", "TIPO_INTERVENCION", "ESTADO_PREVIO", "ESTADO_POSTERIOR"]
-##CLASE_REGISTRO_CLIMA = [""] TODO -- No sabemos que poner aqui
-
 
 lista_autovia = ['AUTOVIA', 'AUTOV']
 lista_calle = ['CALLE', 'C/', 'C.', 'CL.', 'C']
@@ -28,7 +15,6 @@ lista_paseo = ['PASEO', 'PO']
 lista_plaza = ['PLAZA', 'PZA']
 tipos_via = [lista_autovia, lista_avenida, lista_calle, lista_carretera, lista_parque, lista_paseo, lista_plaza]
 
-
 NOMBRES_ARCHIVOS = {"AreasSucio.csv":
                         ["ID","DESC_CLASIFICACION","COD_BARRIO","BARRIO","COD_DISTRITO","DISTRITO","ESTADO","COORD_GIS_X","COORD_GIS_Y","SISTEMA_COORD",
                         "LATITUD", "LONGITUD", "TIPO_VIA","NOM_VIA","NUM_VIA","COD_POSTAL","DIRECCION_AUX","NDP","FECHA_INSTALACION","CODIGO_INTERNO","CONTRATO_COD",
@@ -38,20 +24,20 @@ NOMBRES_ARCHIVOS = {"AreasSucio.csv":
                         ["ID","PUNTUACION_ACCESIBILIDAD","PUNTUACION_CALIDAD","COMENTARIOS","AREA_RECREATIVA_ID","FECHA"],
 
                     "IncidenciasUsuariosSucio.csv": 
-                        ["ID", "TIPO_INCIDENCIA", "FECHA_REPORTE", "ESTADO", "USUARIO_ID", "MANTENIMIENTO_ID"], #UsuarioID, MantenimientoID
+                        ["ID", "TIPO_INCIDENCIA", "FECHA_REPORTE", "ESTADO", "USUARIO_ID", "MANTENIMIENTO_ID"],
                     
                     "IncidentesSeguridadSucio.csv": 
-                        ["ID", "FECHA_REPORTE", "TIPO_INCIDENTE", "GRAVEDAD", "AREA_RECREATIVA_ID"], #AreaRecreativaID
+                        ["ID", "FECHA_REPORTE", "TIPO_INCIDENTE", "GRAVEDAD", "AREA_RECREATIVA_ID"], 
 
                     "JuegosSucio.csv": 
                         ["ID","DESC_CLASIFICACION","COD_BARRIO","BARRIO","COD_DISTRITO","DISTRITO","ESTADO","COORD_GIS_X","COORD_GIS_Y","SISTEMA_COORD",
                          "LATITUD", "LONGITUD", "TIPO_VIA","NOM_VIA","NUM_VIA","COD_POSTAL","DIRECCION_AUX","NDP","FECHA_INSTALACION","CODIGO_INTERNO",
-                         "CONTRATO_COD","MODELO","TIPO_JUEGO","ACCESIBLE", "INDICADOR_EXPOSICION"], # TODO agregar "FECHA_INTERVENCION"
+                         "CONTRATO_COD","MODELO","TIPO_JUEGO","ACCESIBLE", "INDICADOR_EXPOSICION"], 
 
                     "MantenimientoSucio.csv": 
-                        ["ID","FECHA_INTERVENCION","TIPO_INTERVENCION","ESTADO_PREVIO","ESTADO_POSTERIOR","JUEGO_ID","TIPO","COMENTARIOS"], #JuegoID, Tipo, Comentarios
+                        ["ID","FECHA_INTERVENCION","TIPO_INTERVENCION","ESTADO_PREVIO","ESTADO_POSTERIOR","JUEGO_ID","TIPO","COMENTARIOS"], 
                     
-                    "UsuariosSucio.csv": ["NIF", "NOMBRE", "EMAIL", "TELEFONO"], # descartamos email falso
+                    "UsuariosSucio.csv": ["NIF", "NOMBRE", "EMAIL", "TELEFONO"], 
 
                     "estaciones_meteo_CodigoPostal.csv": ["CODIGO", "DIRECCION", "CODIGO_POSTAL"]
                     }
@@ -63,72 +49,29 @@ class CSVProcessor:
         self.ruta_archivo = None
         
 
-    def value_indicador_juego(self, df):
-        """Valores aleatorios a la columna INDICADOR_EXPOSICION en el archivo JuegosSucio.csv (BAJO, MEDIO, ALTO)"""
-        df['INDICADOR_EXPOSICION'] = np.random.choice(['BAJO', 'MEDIO', 'ALTO'], size=len(df))
-        return df
+    def procesar_archivos_csv(self):
+        """Método que itera por cada fichero para procesarlo"""
+        for archivo in os.listdir(self.directorio):
+            if archivo.endswith('.csv'):
+                self.ruta_archivo = os.path.join(self.directorio, archivo)
 
-    
-    def modify_columns(self, df):
-        """Funcion que elimina las columnas innecesarias de los archivos csv"""
-
-        for nombre in NOMBRES_ARCHIVOS.keys():
-            if nombre in self.ruta_archivo:
-
-                # En caso de ser el archivo de areas, crear el atributo coordenadas
-                if nombre == "AreasSucio.csv":
-                    df = self.cambio_nombre('tipo', 'TIPO', df)
+                if "meteo24" in self.ruta_archivo or 'estaciones' in self.ruta_archivo:
+                    self.sustituir_puntos_y_comas() # Sustituir los ; por ,
                 
-                elif nombre == "EncuestasSatisfaccionSucio.csv" or nombre == "IncidentesSeguridadSucio.csv":
-                    df = self.cambio_nombre("AreaRecreativaID", "AREA_RECREATIVA_ID", df)
-
-                elif nombre == "JuegosSucio.csv":
-                    df = self.cambio_nombre('tipo_juego', 'TIPO_JUEGO', df)
-                    # Crear valores aleatorios en JuegosSucio.csv
-                    df = self.value_indicador_juego(df)
-
-                elif nombre == "IncidenciasUsuariosSucio.csv":
-                    df = self.cambio_nombre('MantenimeintoID', 'MANTENIMIENTO_ID', df)
-                    df = self.cambio_nombre('UsuarioID', 'USUARIO_ID', df)
-                
-                elif nombre == "MantenimientoSucio.csv":
-                    df = self.cambio_nombre('Tipo', 'TIPO', df)
-                    df = self.cambio_nombre('JuegoID', 'JUEGO_ID', df)
-                    df = self.cambio_nombre('Comentarios', 'COMENTARIOS', df)
-
-                elif nombre == "estaciones_meteo_CodigoPostal.csv":
-                    df = self.cambio_nombre('CÓDIGO', 'CODIGO', df)
-                    df = self.cambio_nombre('Codigo Postal', 'CODIGO_POSTAL', df)
-                
-                df = df[NOMBRES_ARCHIVOS[nombre]]
-
-                # Devolver el datagrama
-                return df
-
-        return df
-
-    def cambio_nombre(self, nombre_antiguo, nombre_nuevo, df):
-        """Función que cambia los nombres de los atributos"""
-        if nombre_antiguo in df.columns:
-            try:
-                df.loc[:, nombre_nuevo] = df[nombre_antiguo].astype(str)
-                return df.drop([nombre_antiguo], axis=1)
-            except Exception:
-                pass
-        return df
+                self.cargar_y_reemplazar_csv()
     
 
     def cargar_y_reemplazar_csv(self):
         """Metodo que carga y remplaza cada uno de los archivos.csv"""
         df = pd.read_csv(self.ruta_archivo)
 
-        # Borrar informacion innecesaria
+        # Cambia las cabeceras de los ficheros
         if 'meteo24' not in self.ruta_archivo:
             df = self.modify_columns(df)
 
-        # Rellenar datos incompletos de Juegos y Areas
+        # Rellena datos incompletos de Juegos y Areas
         if 'JuegosSucio' in self.ruta_archivo or 'AreasSucio' in self.ruta_archivo:
-            #Buscar considerando un diccionario los datos
+            # Busca considerando un diccionario los datos
             for registro in df.to_dict(orient = 'records'):                
 
                 comparador = []
@@ -166,7 +109,6 @@ class CSVProcessor:
                 except Exception as e:
                     print(f"Error al convertir la columna '{columna}': {e}")
 
-
             if 'fecha' in columna.lower():
                 try:
                     df[columna] = df[columna].map(lambda x: self.corregir_fecha(x))
@@ -179,18 +121,18 @@ class CSVProcessor:
 
             elif 'cod_distrito' in columna.lower() or 'cod_postal' in columna.lower():
                 try:
-                    df[columna] = df[columna].astype(int)# TODO tenemos que hacer que coincida con lo de area si hay valor nulo
+                    df[columna] = df[columna].astype(int)
                 except:
                     pass
 
             if "UsuariosSucio.csv" not in self.ruta_archivo and "meteo24.csv" not in self.ruta_archivo:
-                # Si no es "UsuariosSucio.csv" ni "meteo24.csv", usar el valor en la columna 'ID'
+                # Si no es "UsuariosSucio.csv" ni "meteo24.csv", usa el valor en la columna 'ID'
                 df[columna] = df.apply(
                     lambda row: f"{row['ID']}-{columna}-ausente" if pd.isna(row[columna]) or str(row[columna]).strip() == '' or row[columna] == 'nan' else self.corregir_tipografia(row[columna]),
                     axis=1
                 )
             elif "UsuariosSucio.csv" in self.ruta_archivo:
-                # Si es "UsuariosSucio.csv", usar el valor en la columna 'NIF'
+                # Si es "UsuariosSucio.csv", usa el valor en la columna 'NIF'
                 df[columna] = df.apply(
                     lambda row: f"{row['NIF']}-{columna}-ausente" if pd.isna(row[columna]) or str(row[columna]).strip() == '' else self.corregir_tipografia(row[columna]),
                     axis=1
@@ -204,7 +146,7 @@ class CSVProcessor:
                     except Exception as e:
                         print(f"Error al convertir la columna '{columna}': {e}")
 
-        # Quitar las instancias duplicadas
+        # Quita las instancias duplicadas
         if 'ID' in df.columns:
             df = df.drop_duplicates(subset='ID', keep='first')
             print("Duplicados en la columna 'ID' eliminados.")
@@ -216,6 +158,62 @@ class CSVProcessor:
 
         print(
             f"Archivo '{self.ruta_archivo}' procesado y guardado con valores nulos, fechas estandarizadas y errores tipográficos corregidos.")
+
+
+    def value_indicador_juego(self, df):
+        """ Método que introduce valores aleatorios a la columna INDICADOR_EXPOSICION en el archivo JuegosSucio.csv (BAJO, MEDIO, ALTO)"""
+        df['INDICADOR_EXPOSICION'] = np.random.choice(['BAJO', 'MEDIO', 'ALTO'], size=len(df))
+        return df
+
+    
+    def modify_columns(self, df):
+        """Método que elimina las columnas innecesarias de los archivos csv"""
+
+        for nombre in NOMBRES_ARCHIVOS.keys():
+            if nombre in self.ruta_archivo:
+
+                # En caso de ser el archivo de areas, crear el atributo coordenadas
+                if nombre == "AreasSucio.csv":
+                    df = self.cambio_nombre('tipo', 'TIPO', df)
+                
+                elif nombre == "EncuestasSatisfaccionSucio.csv" or nombre == "IncidentesSeguridadSucio.csv":
+                    df = self.cambio_nombre("AreaRecreativaID", "AREA_RECREATIVA_ID", df)
+
+                elif nombre == "JuegosSucio.csv":
+                    df = self.cambio_nombre('tipo_juego', 'TIPO_JUEGO', df)
+                    # Crear valores aleatorios en JuegosSucio.csv
+                    df = self.value_indicador_juego(df)
+
+                elif nombre == "IncidenciasUsuariosSucio.csv":
+                    df = self.cambio_nombre('MantenimeintoID', 'MANTENIMIENTO_ID', df)
+                    df = self.cambio_nombre('UsuarioID', 'USUARIO_ID', df)
+                
+                elif nombre == "MantenimientoSucio.csv":
+                    df = self.cambio_nombre('Tipo', 'TIPO', df)
+                    df = self.cambio_nombre('JuegoID', 'JUEGO_ID', df)
+                    df = self.cambio_nombre('Comentarios', 'COMENTARIOS', df)
+
+                elif nombre == "estaciones_meteo_CodigoPostal.csv":
+                    df = self.cambio_nombre('CÓDIGO', 'CODIGO', df)
+                    df = self.cambio_nombre('Codigo Postal', 'CODIGO_POSTAL', df)
+                
+                df = df[NOMBRES_ARCHIVOS[nombre]]
+
+                # Devolver el datagrama
+                return df
+
+        return df
+
+
+    def cambio_nombre(self, nombre_antiguo, nombre_nuevo, df):
+        """Método que cambia los nombres de los atributos"""
+        if nombre_antiguo in df.columns:
+            try:
+                df.loc[:, nombre_nuevo] = df[nombre_antiguo].astype(str)
+                return df.drop([nombre_antiguo], axis=1)
+            except Exception:
+                pass
+        return df
 
 
     def corregir_id(self, id):
@@ -237,8 +235,7 @@ class CSVProcessor:
 
 
     def corregir_fecha(self, fecha):
-        """Funcion que corrige el formato de las fechas en el archivo.csv al estilo de MongoDB --> YYYY-MM-DD"""
-        
+        """Método que corrige el formato de las fechas en el archivo.csv al estilo de MongoDB --> YYYY-MM-DD"""      
         # Lista de formatos posibles
         formatos = [
             '%d/%m/%Y',             # Formato 20/10/2013
@@ -250,6 +247,7 @@ class CSVProcessor:
             '%Y-%m-%d',             # Formato 2016-16-02
             '%m/%d/%Y'              # Formato 02/08/2016    
         ]
+
         if pd.isna(fecha) or fecha.lower() == 'fecha_incorrecta':
             return None  # Retorna directamente si la fecha es incorrecta
         
@@ -261,15 +259,15 @@ class CSVProcessor:
             except (ValueError, TypeError):
                 continue  # Continúa al siguiente formato si hay un error
 
-
         return None  # Si ninguno de los formatos funciona
 
 
     def formatear_telefono(self, numero):
-        # Eliminar cualquier carácter no numérico
+        """Método que modifica el formato del número de teléfono"""
+        # Elimina cualquier carácter no numérico
         numero = re.sub(r'\D', '', str(numero))
 
-        # Verificar que el número tiene al menos 9 o 10 dígitos
+        # Verifica que el número tiene al menos 9 o 10 dígitos
         if len(numero):
             return f'+{numero[:2]} {numero[2:5]} {numero[5:8]} {numero[8:]}'
         else:
@@ -278,15 +276,17 @@ class CSVProcessor:
 
 
     def sustituir_puntos_y_comas(self ):
-        # Leer el archivo CSV usando ';' como separador
+        """Método que sustituye el carácter ';' por el carácter ',' para poder abrir correctamente el csv"""
+        # Lee el archivo CSV usando ';' como separador
         df = pd.read_csv(self.ruta_archivo, sep=';')
         
-        # Guardar el archivo CSV usando ',' como separador, sobrescribiendo el original
+        # Guarda el archivo CSV usando ',' como separador, sobrescribiendo el original
         df.to_csv(self.ruta_archivo, sep=',', index=False)
         print(f"Archivo '{self.ruta_archivo}' modificado con éxito.")
     
+
     def corregir_codigos(self, codigo):
-        """Funcion que corrige el formato de los codigos conviertiendolo a tipo entero."""
+        """Método que corrige el formato de los codigos conviertiendolo a tipo entero."""
         try:
             # Intenta convertir la fecha al formato ISO
             if not pd.isna(codigo):
@@ -294,7 +294,9 @@ class CSVProcessor:
         except (ValueError, TypeError):
             return None  # Continúa al siguiente formato si hay un error
 
+
     def corregir_tipografia(self, texto):
+        """Método que deja el texto en mayúsculas y quita los caracteres fuera del formato utf-8"""
         try:
             if isinstance(texto, str):
                 texto = texto.upper()       # Convertir a mayusculas
@@ -305,19 +307,8 @@ class CSVProcessor:
         return texto
 
 
-    def procesar_archivos_csv(self):
-        for archivo in os.listdir(self.directorio):
-            if archivo.endswith('.csv'):
-                self.ruta_archivo = os.path.join(self.directorio, archivo)
-
-                if "meteo24" in self.ruta_archivo or 'estaciones' in self.ruta_archivo:
-                    self.sustituir_puntos_y_comas() # Sustituir los ; por ,
-                
-                self.cargar_y_reemplazar_csv()
-
-
     def direccion_auxiliar(self, registro: dict, comparador: list):
-        
+        """Método que introduce la dirección auxiliar en los campos de dirección correspondientes"""
         if 'TIPO_VIA' in comparador:
             registro['TIPO_VIA'] = self.tipo_via(registro)
 
@@ -331,10 +322,11 @@ class CSVProcessor:
 
 
     def tipo_via(self, registro:dict):
-        """Función que rellena el campo TIPO_VIA del registro a partir de la dirección auxiliar"""
+        """Método que rellena el campo TIPO_VIA del registro a partir de la dirección auxiliar"""
         dir_aux = registro['DIRECCION_AUX']
-        palabras = dir_aux.split()
+        palabras = dir_aux.split()  # Divide el string en una lista por palabras
 
+        # Devuelve el primer elemento si coincide con un tipo en tipo_via
         for lista in tipos_via:
             if palabras[0] in lista:
                 
@@ -343,44 +335,15 @@ class CSVProcessor:
         return None
 
 
-    def num_via(self, registro):
-        """Función que rellena el campo NUM_VIA del registro a partir de la dirección auxiliar"""
-        dir_aux = registro['DIRECCION_AUX']
-    
-        # Separar por palabras
-        palabras = dir_aux.split()
-        
-        lista_aux = []
-        coma_encontrada = False
-
-        for palabra in palabras:
-            if coma_encontrada:
-                lista_aux.append(palabra)
-            if ',' in palabra:
-                coma_encontrada = True
-
-        #Si había coma
-        if coma_encontrada:
-            try:
-                entero_aux = int(lista_aux[0])
-                lista_aux[0] = str(entero_aux)
-                return ' '.join(lista_aux)
-            except:
-                pass
-        
-        return None
-
-
     def nom_via(self, registro):
-        """Función que rellena el campo NOM_VIA del registro a partir de la dirección auxiliar"""
+        """Método que rellena el campo NOM_VIA del registro a partir de la dirección auxiliar"""
         dir_aux = registro['DIRECCION_AUX']
 
         # Separar por palabras
         palabras = dir_aux.split()
         primera_palabra = palabras[0]
 
-        #Comprobar si la primera palabra pertenece a una lista de palabras
-
+        #Comprobar si la primera palabra pertenece a una lista de tipos de vía
         for lista in tipos_via:
             if primera_palabra in lista:
                 palabras = palabras[1:]
@@ -397,6 +360,35 @@ class CSVProcessor:
             lista_aux.append(palabra)
 
         return ' '.join(lista_aux)
+
+
+    def num_via(self, registro):
+        """Método que rellena el campo NUM_VIA del registro a partir de la dirección auxiliar"""
+        dir_aux = registro['DIRECCION_AUX']
+    
+        # Separa por palabras
+        palabras = dir_aux.split()
+        
+        lista_aux = []
+        coma_encontrada = False
+
+        # Introduce todas las palabras a la dirección desde que encuentra una ','
+        for palabra in palabras:
+            if coma_encontrada:
+                lista_aux.append(palabra)
+            if ',' in palabra:
+                coma_encontrada = True
+
+        #Si había coma
+        if coma_encontrada:
+            try:
+                entero_aux = int(lista_aux[0])
+                lista_aux[0] = str(entero_aux)
+                return ' '.join(lista_aux)
+            except:
+                pass
+        
+        return None
 
 
     def cambiar_registro(self, registro: dict, archivo_destino: str, comparador: list):
@@ -436,19 +428,19 @@ class CSVProcessor:
                 else:
                     string_i = str(i)
                 
-                # Continuar iterando en caso de que la fecha no exista en ese mes
+                # Continua iterando en caso de que la fecha no exista en ese mes
                 # Los meses impares tienen 31 dias.
                 # Febrero tiene como maximo 29 dias
 
-                # Comprobar el mes
-                if registro['MES'] == 2:                    # Febreo
-                    # Comprobar si el año es bisiesto
+                # Comprueba el mes
+                if registro['MES'] == 2:                    # Febrero
+                    # Comprueba si el año es bisiesto
                     if (registro['ANO'] % 4 == 0 and registro['ANO'] % 100 != 0) or (registro['ANO'] % 400 == 0):
                         max_dias = 29  # Año bisiesto
                     else:
                         max_dias = 28  # Año no bisiesto
                     if i > max_dias:
-                        continue  # Saltar a la siguiente iteración
+                        continue  # Salta a la siguiente iteración
 
                 elif registro['MES'] % 2 == 0 and i > 30:   # Meses pares
                     continue
@@ -457,10 +449,10 @@ class CSVProcessor:
 
                 fecha = str(registro['ANO']) + '-' + str(registro['MES']) + '-' + str(i) +'T00:00:00'
 
-                # Localizar el código
+                # Localiza el código
                 codigo = registro['PUNTO_MUESTREO'].split('_')[0]
 
-                # Miramos si la fecha ya estaba en otro registro
+                # Mira si la fecha ya estaba en otro registro
                 fechas = [d['FECHA'] for d in csv if d['ID'] == id_registro]
                 if not fechas:
                     fechas = []
@@ -493,14 +485,15 @@ class CSVProcessor:
                 
 
                 if registro_nuevo:
-                    # Añadir el registro porque es nuevo
+                    # Añade el registro porque es nuevo
                     csv.append(registro_aux)
                 else:
-                    # Buscar y modificar el registro guardado
+                    # Busca y modifica el registro guardado
                     for elem in csv:
                         if elem['FECHA'] == registro_aux['FECHA'] and elem['CODIGO'] == registro_aux['CODIGO']:
                             elem.update(registro_aux)
 
+        # Rellena todos los campos que están vacíos a valores nulos (False o '0.0')
         for registro in csv:
             claves = registro.keys()
             if 'VIENTO' not in claves:
@@ -510,21 +503,19 @@ class CSVProcessor:
             if 'PRECIPITACION' not in claves:
                 registro['PRECIPITACION'] = 0.0
 
-        # Convertir a datagrama
+        # Convierte a datagrama
         df_estacion = pd.DataFrame(csv)
 
-        # Guardar la informacion en un archivo.csv
+        # Guarda la informacion en un archivo.csv
         df_estacion.to_csv(self.directorio +'/MeteoModified.csv', index=False)
-
-        
 
         
 
 # Directorio donde están los archivos .csv
 directorio = 'Datasets_Practica_1.2'
 
-# Crear una instancia de la clase CSVProcessor
+# Crea una instancia de la clase CSVProcessor
 procesador_csv = CSVProcessor(directorio)
 
-# Procesar todos los archivos .csv en el directorio
+# Procesa todos los archivos .csv en el directorio
 procesador_csv.procesar_archivos_csv()
