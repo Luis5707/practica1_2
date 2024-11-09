@@ -96,7 +96,7 @@ class CSVProcessor:
                     df = self.cambio_nombre('JuegoID', 'JUEGO_ID', df)
                     df = self.cambio_nombre('Comentarios', 'COMENTARIOS', df)
 
-                elif nombre == "estaciones_meteo_CodigoPostal":
+                elif nombre == "estaciones_meteo_CodigoPostal.csv":
                     df = self.cambio_nombre('Código', 'CODIGO', df)
                     df = self.cambio_nombre('Direccion', 'DIRECCION', df)
                     df = self.cambio_nombre('Codigo Postal', 'CODIGO_POSTAL', df)
